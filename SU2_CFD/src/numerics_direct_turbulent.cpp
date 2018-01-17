@@ -287,6 +287,98 @@ void CAvgGrad_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2double **J
   AD::EndPreacc();
 
 }
+/* ----- This for now only a duplicate of the SA model -----------------*/
+CAvgGrad_TurbSA_Rug::CAvgGrad_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar, CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
+  
+  implicit = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
+  incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
+  
+  sigma = 2./3.;
+  
+  Edge_Vector = new su2double [nDim];
+  Proj_Mean_GradTurbVar_Kappa = new su2double [nVar];
+  Proj_Mean_GradTurbVar_Edge = new su2double [nVar];
+  Mean_GradTurbVar = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++)
+    Mean_GradTurbVar[iVar] = new su2double [nDim];
+  
+}
+
+CAvgGrad_TurbSA_Rug::~CAvgGrad_TurbSA_Rug(void) {
+  
+  delete [] Edge_Vector;
+  delete [] Proj_Mean_GradTurbVar_Kappa;
+  delete [] Proj_Mean_GradTurbVar_Edge;
+  for (iVar = 0; iVar < nVar; iVar++)
+    delete [] Mean_GradTurbVar[iVar];
+  delete [] Mean_GradTurbVar;
+  
+}
+
+void CAvgGrad_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config) {
+  
+  AD::StartPreacc();
+  AD::SetPreaccIn(Coord_i, nDim); AD::SetPreaccIn(Coord_j, nDim);
+  AD::SetPreaccIn(Normal, nDim);
+  AD::SetPreaccIn(TurbVar_Grad_i, nVar, nDim); AD::SetPreaccIn(TurbVar_Grad_j, nVar, nDim);
+
+  if (incompressible) {
+    AD::SetPreaccIn(V_i, nDim+5); AD::SetPreaccIn(V_j, nDim+5);
+
+    Density_i = V_i[nDim+1];            Density_j = V_j[nDim+1];
+    Laminar_Viscosity_i = V_i[nDim+3];  Laminar_Viscosity_j = V_j[nDim+3];
+    Eddy_Viscosity_i = V_i[nDim+4];     Eddy_Viscosity_j = V_j[nDim+4];
+  }
+  else {    
+    AD::SetPreaccIn(V_i, nDim+7); AD::SetPreaccIn(V_j, nDim+7);
+
+    Density_i = V_i[nDim+2];            Density_j = V_j[nDim+2];
+    Laminar_Viscosity_i = V_i[nDim+5];  Laminar_Viscosity_j = V_j[nDim+5];
+    Eddy_Viscosity_i = V_i[nDim+6];     Eddy_Viscosity_j = V_j[nDim+6];
+  }
+  
+  /*--- Compute mean effective viscosity ---*/
+  
+  nu_i = Laminar_Viscosity_i/Density_i;
+  nu_j = Laminar_Viscosity_j/Density_j;
+  nu_e = 0.5*(nu_i+nu_j+TurbVar_i[0]+TurbVar_j[0]);
+  
+  /*--- Compute vector going from iPoint to jPoint ---*/
+  
+  dist_ij_2 = 0; proj_vector_ij = 0;
+  for (iDim = 0; iDim < nDim; iDim++) {
+    Edge_Vector[iDim] = Coord_j[iDim]-Coord_i[iDim];
+    dist_ij_2 += Edge_Vector[iDim]*Edge_Vector[iDim];
+    proj_vector_ij += Edge_Vector[iDim]*Normal[iDim];
+  }
+  if (dist_ij_2 == 0.0) proj_vector_ij = 0.0;
+  else proj_vector_ij = proj_vector_ij/dist_ij_2;
+  
+  /*--- Mean gradient approximation ---*/
+  
+  for (iVar = 0; iVar < nVar; iVar++) {
+    Proj_Mean_GradTurbVar_Kappa[iVar] = 0.0;
+    Proj_Mean_GradTurbVar_Edge[iVar] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Mean_GradTurbVar[iVar][iDim] = 0.5*(TurbVar_Grad_i[iVar][iDim] + TurbVar_Grad_j[iVar][iDim]);
+      Proj_Mean_GradTurbVar_Kappa[iVar] += Mean_GradTurbVar[iVar][iDim]*Normal[iDim];
+    }
+  }
+  
+  val_residual[0] = nu_e*Proj_Mean_GradTurbVar_Kappa[0]/sigma;
+  
+  /*--- For Jacobians -> Use of TSL approx. to compute derivatives of the gradients ---*/
+  
+  if (implicit) {
+    Jacobian_i[0][0] = (0.5*Proj_Mean_GradTurbVar_Kappa[0]-nu_e*proj_vector_ij)/sigma;
+    Jacobian_j[0][0] = (0.5*Proj_Mean_GradTurbVar_Kappa[0]+nu_e*proj_vector_ij)/sigma;
+  }
+  
+  AD::SetPreaccOut(val_residual, nVar);
+  AD::EndPreacc();
+
+}
+/* ---- end of CAvgGrad_TurbSA_Rug modif */
 
 CAvgGradCorrected_TurbSA::CAvgGradCorrected_TurbSA(unsigned short val_nDim, unsigned short val_nVar,
                                                    CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
@@ -500,6 +592,107 @@ void CAvgGradCorrected_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2d
   AD::EndPreacc();
 
 }
+
+/* ---- modif for SA Rough model now only duplicate SA */
+CAvgGradCorrected_TurbSA_Rug::CAvgGradCorrected_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar,
+                                                   CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
+  
+  implicit        = (config->GetKind_TimeIntScheme_Turb() == EULER_IMPLICIT);
+  incompressible  = (config->GetKind_Regime() == INCOMPRESSIBLE);
+  
+  sigma = 2./3.;
+  
+  Edge_Vector = new su2double [nDim];
+  Proj_Mean_GradTurbVar_Kappa = new su2double [nVar];
+  Proj_Mean_GradTurbVar_Edge = new su2double [nVar];
+  Proj_Mean_GradTurbVar_Corrected = new su2double [nVar];
+  Mean_GradTurbVar = new su2double* [nVar];
+  for (iVar = 0; iVar < nVar; iVar++)
+    Mean_GradTurbVar[iVar] = new su2double [nDim];
+  
+}
+
+CAvgGradCorrected_TurbSA_Rug::~CAvgGradCorrected_TurbSA_Rug(void) {
+  
+  delete [] Edge_Vector;
+  delete [] Proj_Mean_GradTurbVar_Kappa;
+  delete [] Proj_Mean_GradTurbVar_Edge;
+  delete [] Proj_Mean_GradTurbVar_Corrected;
+  for (iVar = 0; iVar < nVar; iVar++)
+    delete [] Mean_GradTurbVar[iVar];
+  delete [] Mean_GradTurbVar;
+  
+}
+
+void CAvgGradCorrected_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config) {
+  
+  AD::StartPreacc();
+  AD::SetPreaccIn(Coord_i, nDim); AD::SetPreaccIn(Coord_j, nDim);
+  AD::SetPreaccIn(Normal, nDim);
+  AD::SetPreaccIn(TurbVar_i, nVar); AD::SetPreaccIn(TurbVar_j, nVar);
+  AD::SetPreaccIn(TurbVar_Grad_i, nVar, nDim); AD::SetPreaccIn(TurbVar_Grad_j, nVar, nDim);
+
+  if (incompressible) {
+    AD::SetPreaccIn(V_i, nDim+5);   AD::SetPreaccIn(V_j, nDim+5);
+
+    Density_i = V_i[nDim+1];            Density_j = V_j[nDim+1];
+    Laminar_Viscosity_i = V_i[nDim+3];  Laminar_Viscosity_j = V_j[nDim+3];
+    Eddy_Viscosity_i = V_i[nDim+4];     Eddy_Viscosity_j = V_j[nDim+4];
+  }
+  else {
+    AD::SetPreaccIn(V_i, nDim+7);   AD::SetPreaccIn(V_j, nDim+7);
+
+    Density_i = V_i[nDim+2];            Density_j = V_j[nDim+2];
+    Laminar_Viscosity_i = V_i[nDim+5];  Laminar_Viscosity_j = V_j[nDim+5];
+    Eddy_Viscosity_i = V_i[nDim+6];     Eddy_Viscosity_j = V_j[nDim+6];
+  }
+  
+  /*--- Compute mean effective viscosity ---*/
+  
+  nu_i = Laminar_Viscosity_i/Density_i;
+  nu_j = Laminar_Viscosity_j/Density_j;
+  nu_e = 0.5*(nu_i+nu_j+TurbVar_i[0]+TurbVar_j[0]);
+  
+  /*--- Compute vector going from iPoint to jPoint ---*/
+  
+  dist_ij_2 = 0; proj_vector_ij = 0;
+  for (iDim = 0; iDim < nDim; iDim++) {
+    Edge_Vector[iDim] = Coord_j[iDim]-Coord_i[iDim];
+    dist_ij_2 += Edge_Vector[iDim]*Edge_Vector[iDim];
+    proj_vector_ij += Edge_Vector[iDim]*Normal[iDim];
+  }
+  if (dist_ij_2 == 0.0) proj_vector_ij = 0.0;
+  else proj_vector_ij = proj_vector_ij/dist_ij_2;
+  
+  /*--- Mean gradient approximation. Projection of the mean gradient
+   in the direction of the edge ---*/
+  
+  for (iVar = 0; iVar < nVar; iVar++) {
+    Proj_Mean_GradTurbVar_Kappa[iVar] = 0.0;
+    Proj_Mean_GradTurbVar_Edge[iVar] = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++) {
+      Mean_GradTurbVar[iVar][iDim] = 0.5*(TurbVar_Grad_i[iVar][iDim] + TurbVar_Grad_j[iVar][iDim]);
+      Proj_Mean_GradTurbVar_Kappa[iVar] += Mean_GradTurbVar[iVar][iDim]*Normal[iDim];
+      Proj_Mean_GradTurbVar_Edge[iVar] += Mean_GradTurbVar[iVar][iDim]*Edge_Vector[iDim];
+    }
+    Proj_Mean_GradTurbVar_Corrected[iVar] = Proj_Mean_GradTurbVar_Kappa[iVar];
+    Proj_Mean_GradTurbVar_Corrected[iVar] -= Proj_Mean_GradTurbVar_Edge[iVar]*proj_vector_ij -
+    (TurbVar_j[iVar]-TurbVar_i[iVar])*proj_vector_ij;
+  }
+  
+  val_residual[0] = nu_e*Proj_Mean_GradTurbVar_Corrected[0]/sigma;
+  
+  /*--- For Jacobians -> Use of TSL approx. to compute derivatives of the gradients ---*/
+  
+  if (implicit) {
+    Jacobian_i[0][0] = (0.5*Proj_Mean_GradTurbVar_Corrected[0]-nu_e*proj_vector_ij)/sigma;
+    Jacobian_j[0][0] = (0.5*Proj_Mean_GradTurbVar_Corrected[0]+nu_e*proj_vector_ij)/sigma;
+  }
+  
+  AD::SetPreaccOut(val_residual, nVar);
+  AD::EndPreacc();
+}
+/* --- end modication for Rough SA ---*/
 
 CSourcePieceWise_TurbSA::CSourcePieceWise_TurbSA(unsigned short val_nDim, unsigned short val_nVar,
                                                  CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
@@ -842,6 +1035,190 @@ void CSourcePieceWise_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2do
 //  AD::SetPreaccOut(val_residual, nVar);
 //  AD::EndPreacc();
 }
+/* --- Modification for Rough SA model now just duplicate SA  ---*/
+CSourcePieceWise_TurbSA_Rug::CSourcePieceWise_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar,
+                                                 CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
+  
+  incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
+  rotating_frame = config->GetRotating_Frame();
+  transition = (config->GetKind_Trans_Model() == BC);
+  
+  /*--- Spalart-Allmaras closure constants ---*/
+  
+  cv1_3 = pow(7.1, 3.0);
+  k2    = pow(0.41, 2.0);
+  cb1   = 0.1355;
+  cw2   = 0.3;
+  ct3   = 1.2;
+  ct4   = 0.5;
+  cw3_6 = pow(2.0, 6.0);
+  sigma = 2./3.;
+  cb2   = 0.622;
+  cb2_sigma = cb2/sigma;
+  cw1 = cb1/k2+(1.0+cb2)/sigma;
+  /*--- Additional closure constant for rough wall ---*/
+  cr1 = 0.5;
+  
+}
+
+CSourcePieceWise_TurbSA_Rug::~CSourcePieceWise_TurbSA_Rug(void) { }
+
+void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config) {
+  
+//  AD::StartPreacc();
+//  AD::SetPreaccIn(V_i, nDim+6);
+//  AD::SetPreaccIn(Vorticity_i, nDim);
+//  AD::SetPreaccIn(StrainMag_i);
+//  AD::SetPreaccIn(TurbVar_i[0]);
+//  AD::SetPreaccIn(TurbVar_Grad_i[0], nDim);
+//  AD::SetPreaccIn(Volume); AD::SetPreaccIn(dist_i);
+
+//  BC Transition Model variables
+  su2double vmag, rey, re_theta, re_theta_t, re_v;
+  su2double tu , nu_cr, nu_t, nu_BC, chi_1, chi_2, gamma_BC, term1, term2, term_exponential;
+//  Rough Wall Model variables
+  su2double ks;
+
+  if (incompressible) {
+    Density_i = V_i[nDim+1];
+    Laminar_Viscosity_i = V_i[nDim+3];
+  }
+  else {
+    Density_i = V_i[nDim+2];
+    Laminar_Viscosity_i = V_i[nDim+5];
+  }
+  
+  val_residual[0] = 0.0;
+  Production      = 0.0;
+  Destruction     = 0.0;
+  CrossProduction = 0.0;
+  val_Jacobian_i[0][0] = 0.0;
+  
+  gamma_BC = 0.0;
+  vmag = 0.0;
+  tu   = config->GetTurbulenceIntensity_FreeStream();
+  rey  = config->GetReynolds();
+  ks = config->GetRugosity_Wall();
+
+  if (nDim==2) {
+    vmag = sqrt(V_i[1]*V_i[1]+V_i[2]*V_i[2]);
+  }
+  else if (nDim==3) {
+    vmag = sqrt(V_i[1]*V_i[1]+V_i[2]*V_i[2]+V_i[3]*V_i[3]);
+  }
+  
+  /*--- Evaluate Omega ---*/
+  
+  Omega = sqrt(Vorticity_i[0]*Vorticity_i[0] + Vorticity_i[1]*Vorticity_i[1] + Vorticity_i[2]*Vorticity_i[2]);
+  
+  /*--- Rotational correction term ---*/
+  
+  if (rotating_frame) { Omega += 2.0*min(0.0, StrainMag_i-Omega); }
+
+  /*--- Rough wall distance correction ---*/
+
+  dist_new = dist_i + 0.03*ks;
+  
+  if (dist_new > 1e-10) {
+    
+    /*--- Production term ---*/
+    
+    dist_new_2 = dist_new*dist_new;
+    nu = Laminar_Viscosity_i/Density_i;
+    Ji = TurbVar_i[0]/nu+cr1*ks/dist_new;
+    Ji_2 = Ji*Ji;
+    Ji_3 = Ji_2*Ji;
+    fv1 = Ji_3/(Ji_3+cv1_3);
+    fv2 = 1.0 - TurbVar_i[0]/(nu+TurbVar_i[0]*fv1);
+    ft2 = ct3*exp(-ct4*Ji_2);
+    S = Omega;
+    inv_k2_d2 = 1.0/(k2*dist_new_2);
+    
+    Shat = S + TurbVar_i[0]*fv2*inv_k2_d2;
+    Shat = max(Shat, 1.0e-10);
+    inv_Shat = 1.0/Shat;
+
+//    Original SA model
+//    Production = cb1*(1.0-ft2)*Shat*TurbVar_i[0]*Volume;
+    
+    if (transition) {
+
+//    BC model constants    
+      chi_1 = 0.002;
+      chi_2 = 5.0;
+
+      nu_t = (TurbVar_i[0]*fv1); //S-A variable
+      nu_cr = chi_2/rey;
+      nu_BC = (nu_t)/(vmag*dist_new);
+
+      re_v   = ((Density_i*pow(dist_new,2.))/(Laminar_Viscosity_i))*Omega;
+      re_theta = re_v/2.193;
+      re_theta_t = (803.73 * pow((tu + 0.6067),-1.027)); //MENTER correlation
+      //re_theta_t = 163.0 + exp(6.91-tu); //ABU-GHANNAM & SHAW correlation
+
+      term1 = sqrt(max(re_theta-re_theta_t,0.)/(chi_1*re_theta_t));
+      term2 = sqrt(max(nu_BC-nu_cr,0.)/(nu_cr));
+      term_exponential = (term1 + term2);
+      gamma_BC = 1.0 - exp(-term_exponential);
+
+      Production = gamma_BC*cb1*Shat*TurbVar_i[0]*Volume;
+    }
+    else {
+      Production = cb1*Shat*TurbVar_i[0]*Volume;
+    }
+    
+    /*--- Destruction term ---*/
+    
+    r = min(TurbVar_i[0]*inv_Shat*inv_k2_d2,10.0);
+    g = r + cw2*(pow(r,6.0)-r);
+    g_6 =  pow(g,6.0);
+    glim = pow((1.0+cw3_6)/(g_6+cw3_6),1.0/6.0);
+    fw = g*glim;
+    
+//    Original SA model
+//    Destruction = (cw1*fw-cb1*ft2/k2)*TurbVar_i[0]*TurbVar_i[0]/dist_i_2*Volume;
+    
+    Destruction = cw1*fw*TurbVar_i[0]*TurbVar_i[0]/dist_new_2*Volume;
+
+    /*--- Diffusion term ---*/
+    
+    norm2_Grad = 0.0;
+    for (iDim = 0; iDim < nDim; iDim++)
+      norm2_Grad += TurbVar_Grad_i[0][iDim]*TurbVar_Grad_i[0][iDim];
+    
+    CrossProduction = cb2_sigma*norm2_Grad*Volume;
+    
+    val_residual[0] = Production - Destruction + CrossProduction;
+    
+    /*--- Implicit part, production term ---*/
+    
+    dfv1 = 3.0*Ji_2*cv1_3/(nu*pow(Ji_3+cv1_3,2.));
+    dfv2 = -(1/nu-Ji_2*dfv1)/pow(1.+Ji*fv1,2.);
+    if ( Shat <= 1.0e-10 ) dShat = 0.0;
+    else dShat = (fv2+TurbVar_i[0]*dfv2)*inv_k2_d2;
+    
+    if (transition) {
+        val_Jacobian_i[0][0] += gamma_BC*cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
+    }
+    else {
+        val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
+    }
+    
+    /*--- Implicit part, destruction term ---*/
+    
+    dr = (Shat-TurbVar_i[0]*dShat)*inv_Shat*inv_Shat*inv_k2_d2;
+    if (r == 10.0) dr = 0.0;
+    dg = dr*(1.+cw2*(6.0*pow(r,5.0)-1.0));
+    dfw = dg*glim*(1.-g_6/(g_6+cw3_6));
+    val_Jacobian_i[0][0] -= cw1*(dfw*TurbVar_i[0] +  2.0*fw)*TurbVar_i[0]/dist_new_2*Volume;
+    
+  }
+
+//  AD::SetPreaccOut(val_residual[0]);
+//  AD::EndPreacc();
+  
+}
+/* --- end modification Rough SA model --- */
 
 CUpwSca_TurbSST::CUpwSca_TurbSST(unsigned short val_nDim, unsigned short val_nVar,
                                  CConfig *config) : CNumerics(val_nDim, val_nVar, config) {

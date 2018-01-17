@@ -881,7 +881,7 @@ void CSingleGridIntegration::SetRestricted_EddyVisc(unsigned short RunTime_EqSys
   }
   
   /*--- Update solution at the no slip wall boundary, only the first
-   variable (nu_tilde -in SA and SA_NEG- and k -in SST-), to guarantee that the eddy viscoisty
+   variable (nu_tilde -in SA and SA_NEG and SA_ROUGH - and k -in SST-), to guarantee that the eddy viscoisty
    is zero on the surface ---*/
   
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {

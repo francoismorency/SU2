@@ -704,6 +704,13 @@ void CTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solver_
         }
         
         break;
+        case SA_ROUGH:
+        
+        for (iPoint = 0; iPoint < nPointDomain; iPoint++) {
+          node[iPoint]->AddClippedSolution(0, config->GetRelaxation_Factor_Turb()*LinSysSol[iPoint], lowerlimit[0], upperlimit[0]);
+        }
+        
+        break;
         
     }
   }

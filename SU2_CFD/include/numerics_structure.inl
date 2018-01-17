@@ -444,6 +444,20 @@ inline su2double CSourcePieceWise_TurbSA_Neg::GetDestruction(void) { return Dest
 
 inline su2double CSourcePieceWise_TurbSA_Neg::GetCrossProduction(void) { return CrossProduction; }
 
+inline void CSourcePieceWise_TurbSA_Rug::SetIntermittency(su2double intermittency_in) { intermittency = intermittency_in; }
+
+inline void CSourcePieceWise_TurbSA_Rug::SetProduction(su2double val_production) { Production = val_production; }
+
+inline void CSourcePieceWise_TurbSA_Rug::SetDestruction(su2double val_destruction) { Destruction = val_destruction; }
+
+inline void CSourcePieceWise_TurbSA_Rug::SetCrossProduction(su2double val_crossproduction) { CrossProduction = val_crossproduction; }
+
+inline su2double CSourcePieceWise_TurbSA_Rug::GetProduction(void) { return Production; }
+
+inline su2double CSourcePieceWise_TurbSA_Rug::GetDestruction(void) { return Destruction; }
+
+inline su2double CSourcePieceWise_TurbSA_Rug::GetCrossProduction(void) { return CrossProduction; }
+
 inline su2double CUpwTurkel_Flow::GetPrecond_Beta() { return Beta; }
 
 inline void CNumerics::ComputeResidual(su2double **val_Jacobian_i, su2double *val_Jacobian_mui, su2double ***val_Jacobian_gradi, CConfig *config) { }

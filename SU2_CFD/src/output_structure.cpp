@@ -4049,6 +4049,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config) {
     case SA:     SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
     case SA_NEG: SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
     case SST:     SPRINTF (turb_resid, ",\"Res_Turb[0]\",\"Res_Turb[1]\""); break;
+    case SA_ROUGH: SPRINTF (turb_resid, ",\"Res_Turb[0]\""); break;
   }
   char adj_turb_resid[]= ",\"Res_AdjTurb[0]\"";
   char wave_resid[]= ",\"Res_Wave[0]\",\"Res_Wave[1]\"";
@@ -4324,6 +4325,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case SA:     nVar_Turb = 1; break;
         case SA_NEG: nVar_Turb = 1; break;
         case SST:    nVar_Turb = 2; break;
+        case SA_ROUGH: nVar_Turb = 1; break;
       }
     }
     if (transition) nVar_Trans = 2;
@@ -4342,6 +4344,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         case SA:     nVar_AdjTurb = 1; break;
         case SA_NEG: nVar_AdjTurb = 1; break;
         case SST:    nVar_AdjTurb = 2; break;
+        case SA_ROUGH: nVar_AdjTurb = 1; break;
       }
     }
     
@@ -5195,6 +5198,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
               case SA:     cout << "       Res[nu]"; break;
               case SA_NEG: cout << "       Res[nu]"; break;
               case SST:     cout << "     Res[kine]" << "     Res[omega]"; break;
+              case SA_ROUGH: cout << "       Res[nu]"; break;
             }
             
             if (transition) { cout << "      Res[Int]" << "       Res[Re]"; }

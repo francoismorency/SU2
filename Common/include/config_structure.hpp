@@ -666,6 +666,7 @@ private:
   TurbulenceIntensity_FreeStream,     /*!< \brief Freestream turbulent intensity (for sagt transition model) of the fluid.  */
   Turb2LamViscRatio_FreeStream,          /*!< \brief Ratio of turbulent to laminar viscosity. */
   NuFactor_FreeStream,  /*!< \brief Ratio of turbulent to laminar viscosity. */
+  Rugosity_Wall, /* !< \brief Constant rugosity at walls for SA_Rough model */
   NuFactor_Engine,  /*!< \brief Ratio of turbulent to laminar viscosity at the engine. */
   SecondaryFlow_ActDisk,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
   Initial_BCThrust,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
@@ -1623,6 +1624,13 @@ public:
    * \return Non-dimensionalized engine intensity.
    */
   su2double GetNuFactor_Engine(void);
+
+ /*!
+   * \brief Get the value of the equivalent sand grain roughness at wall.
+   * \return equivalent sand grain roughness.
+   */
+  su2double GetRugosity_Wall(void);
+  
   
   /*!
    * \brief Get the value of the non-dimensionalized actuator disk turbulence intensity.
@@ -5260,6 +5268,7 @@ public:
    * \return The heat flux.
    */
   su2double GetWall_HeatFlux(string val_index);
+
   
   /*!
    * \brief Get the target (pressure, massflow, etc) at an engine inflow boundary.

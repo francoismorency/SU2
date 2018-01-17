@@ -433,6 +433,8 @@ inline su2double CConfig::GetTurbulenceIntensity_FreeStream(void) { return Turbu
 
 inline su2double CConfig::GetTurb2LamViscRatio_FreeStream(void) { return Turb2LamViscRatio_FreeStream;}
 
+inline su2double CConfig::GetRugosity_Wall(void) { return Rugosity_Wall; }
+
 inline su2double* CConfig::GetMassFrac_FreeStream(void) { return MassFrac_FreeStream; }
 
 inline su2double CConfig::GetLength_Reynolds(void) { return Length_Reynolds; }

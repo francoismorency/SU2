@@ -2922,6 +2922,52 @@ public:
   void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config);
 };
 
+
+/*!
+ * \class CAvgGrad_TurbSA_Rug
+ * \brief Class for computing viscous term using average of gradients (Spalart-Allmaras Roughness Turbulence model).
+ * \ingroup ViscDiscr
+ * \author F. Morency.
+ * \version 5.0.0 "Raven"
+ */
+class CAvgGrad_TurbSA_Rug : public CNumerics {
+private:
+  
+  su2double **Mean_GradTurbVar;
+  su2double *Proj_Mean_GradTurbVar_Kappa, *Proj_Mean_GradTurbVar_Edge;
+  su2double *Edge_Vector;
+  bool implicit, incompressible;
+  su2double sigma;
+  su2double nu_i, nu_j, nu_e;
+  su2double dist_ij_2;
+  su2double proj_vector_ij;
+  unsigned short iVar, iDim;
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CAvgGrad_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CAvgGrad_TurbSA_Rug(void);
+  
+  /*!
+   * \brief Compute the viscous turbulence terms residual using an average of gradients.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config);
+};
+
 /*!
  * \class CAvgGrad_TurbML
  * \brief Class for computing viscous term using average of gradients (Spalart-Allmaras Turbulence model).
@@ -3303,6 +3349,47 @@ public:
    * \brief Destructor of the class.
    */
   ~CAvgGradCorrected_TurbSA_Neg(void);
+  
+  /*!
+   * \brief Compute the viscous turbulent residual using an average of gradients with correction.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config);
+};
+
+/*!
+ * \class CAvgGradCorrected_TurbSA_Rug
+ * \brief Class for computing viscous term using average of gradients with correction (Spalart-Allmaras turbulence model).
+ * \ingroup ViscDiscr
+ * \author F. Morency.
+ * \version 5.0.0 "Raven"
+ */
+class CAvgGradCorrected_TurbSA_Rug : public CNumerics {
+private:
+  su2double **Mean_GradTurbVar;
+  su2double *Proj_Mean_GradTurbVar_Kappa, *Proj_Mean_GradTurbVar_Edge, *Proj_Mean_GradTurbVar_Corrected;
+  su2double *Edge_Vector;
+  bool implicit, incompressible;
+  su2double sigma, nu_i, nu_j, nu_e, dist_ij_2, proj_vector_ij;
+  unsigned short iVar, iDim;
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CAvgGradCorrected_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CAvgGradCorrected_TurbSA_Rug(void);
   
   /*!
    * \brief Compute the viscous turbulent residual using an average of gradients with correction.
@@ -4190,6 +4277,105 @@ public:
    */
   su2double GetCrossProduction(void);
 };
+
+/*!
+ * \class CSourcePieceWise_TurbSA_Rug
+ * \brief Class for integrating the source terms of the Spalart-Allmaras turbulence model equation.
+ * \ingroup SourceDiscr
+ * \author F. Morency.
+ * \version 5.0.0 "Raven"
+ */
+class CSourcePieceWise_TurbSA_Rug : public CNumerics {
+private:
+  su2double cv1_3;
+  su2double k2;
+  su2double cb1;
+  su2double cw2;
+  su2double ct3;
+  su2double ct4;
+  su2double cw3_6;
+  su2double cb2_sigma;
+  su2double sigma;
+  su2double cb2;
+  su2double cw1;
+  unsigned short iDim;
+  su2double nu, Ji, fv1, fv2, ft2, Omega, S, Shat, inv_Shat, dist_i_2, dist_rug_i_2, Ji_2, Ji_3, inv_k2_d2;
+  su2double dist_new, dist_new_2;
+  su2double r, g, g_6, glim, fw;
+  su2double norm2_Grad;
+  su2double dfv1, dfv2, dShat;
+  su2double dr, dg, dfw;
+  bool incompressible;
+  bool rotating_frame;
+  bool transition;
+  su2double intermittency;
+  su2double Production, Destruction, CrossProduction;
+  su2double cr1;
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CSourcePieceWise_TurbSA_Rug(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CSourcePieceWise_TurbSA_Rug(void);
+  
+  /*!
+   * \brief Residual for source term integration.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+  
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] intermittency_in - Value of the intermittency.
+   */
+  void SetIntermittency(su2double intermittency_in);
+  
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] val_production - Value of the Production.
+   */
+  void SetProduction(su2double val_production);
+  
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] val_destruction - Value of the Destruction.
+   */
+  void SetDestruction(su2double val_destruction);
+  
+  /*!
+   * \brief Residual for source term integration.
+   * \param[in] val_crossproduction - Value of the CrossProduction.
+   */
+  void SetCrossProduction(su2double val_crossproduction);
+  
+  /*!
+   * \brief ______________.
+   */
+  su2double GetProduction(void);
+  
+  /*!
+   * \brief  ______________.
+   */
+  su2double GetDestruction(void);
+  
+  /*!
+   * \brief  ______________.
+   */
+  su2double GetCrossProduction(void);
+};
+
 
 /*!
  * \class CSourcePieceWise_TransLM
