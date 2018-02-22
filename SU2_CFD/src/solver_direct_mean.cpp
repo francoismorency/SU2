@@ -16025,6 +16025,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   Grad_Vel[3][3] = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}}, Grad_Temp[3] = {0.0, 0.0, 0.0},
   delta[3][3] = {{1.0, 0.0, 0.0},{0.0,1.0,0.0},{0.0,0.0,1.0}};
   su2double AxiFactor;
+  su2double eddy_viscosity = 0.0;
 
 #ifdef HAVE_MPI
   su2double MyAllBound_CD_Visc, MyAllBound_CL_Visc, MyAllBound_CSF_Visc, MyAllBound_CMx_Visc, MyAllBound_CMy_Visc, MyAllBound_CMz_Visc, MyAllBound_CFx_Visc, MyAllBound_CFy_Visc, MyAllBound_CFz_Visc, MyAllBound_CT_Visc, MyAllBound_CQ_Visc, MyAllBound_HF_Visc, MyAllBound_MaxHF_Visc, *MySurface_CL_Visc = NULL, *MySurface_CD_Visc = NULL, *MySurface_CSF_Visc = NULL, *MySurface_CEff_Visc = NULL, *MySurface_CFx_Visc = NULL, *MySurface_CFy_Visc = NULL, *MySurface_CFz_Visc = NULL, *MySurface_CMx_Visc = NULL, *MySurface_CMy_Visc = NULL, *MySurface_CMz_Visc = NULL, *MySurface_HF_Visc = NULL, *MySurface_MaxHF_Visc;
@@ -16041,6 +16042,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   bool grid_movement        = config->GetGrid_Movement();
   su2double Prandtl_Lam     = config->GetPrandtl_Lam();
   bool axisymmetric         = config->GetAxisymmetric();
+  bool rug_spalart_allmaras = config->GetKind_Turb_Model() == SA_ROUGH;
 
   /*--- Evaluate reference values for non-dimensionalization.
    For dynamic meshes, use the motion Mach number as a reference value
@@ -16130,6 +16132,12 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
         
         Viscosity = node[iPoint]->GetLaminarViscosity();
         Density = node[iPoint]->GetDensity();
+
+        /*--- if rough wall then eddy viscosity not zero at wall ---*/
+        if (rug_spalart_allmaras) {
+          eddy_viscosity = node[iPoint]->GetEddyViscosity();
+          Viscosity += eddy_viscosity;
+        }
         
         Area = 0.0; for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim]; Area = sqrt(Area);
         
