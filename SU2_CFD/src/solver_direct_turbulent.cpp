@@ -1590,7 +1590,9 @@ void CTurbSASolver::Source_Template(CGeometry *geometry, CSolver **solver_contai
 
 void CTurbSASolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
   unsigned long iPoint, iVertex;
-  unsigned short iVar;
+  unsigned short iVar, iDim;
+  su2double *nu_hat, ks, dist_new, Area, *Normal,rho,mu,nu; 
+  bool rug_spalart_allmaras = (config->GetKind_Turb_Model() == SA_ROUGH);
   
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
@@ -1598,18 +1600,60 @@ void CTurbSASolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_conta
     /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     
     if (geometry->node[iPoint]->GetDomain()) {
+ 
+      /*--- Special BC if rough wall: Newman ---*/
+      if (rug_spalart_allmaras) {
+
+        /*--- Get nutilde value at the wall and roughness from config ---*/
+        nu_hat = node[iPoint]->GetSolution();
+        ks = config->GetRugosity_Wall();
+        dist_new = 0.03*ks;
       
-      /*--- Get the velocity vector ---*/
+        /*--- Compute dual-grid area ---*/
       
-      for (iVar = 0; iVar < nVar; iVar++)
-        Solution[iVar] = 0.0;
+        Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
       
-      node[iPoint]->SetSolution_Old(Solution);
-      LinSysRes.SetBlock_Zero(iPoint);
+        Area = 0.0;
+        for (iDim = 0; iDim < nDim; iDim++)
+          Area += Normal[iDim]*Normal[iDim];
+        Area = sqrt (Area);  
       
-      /*--- includes 1 in the diagonal ---*/
+        /*--- Get transport coefficients ---*/
       
-      Jacobian.DeleteValsRowi(iPoint);
+        rho = solver_container[FLOW_SOL]->node[iPoint]->GetDensity();
+        mu  = solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity();
+        nu  = mu/rho;
+
+        /*--- Compute the viscous residuals due to the prescribed flux ---*/
+        /*--- d(nuhat)/dn = nu_hat/d
+        /*--- FM not sure I should multiply by Area ---*/
+        su2double sigma = 2./3.;
+        for (iVar = 0; iVar < nVar; iVar++) {
+          Residual[iVar] =  Area/sigma*(nu+nu_hat[0])*nu_hat[0]/dist_new;
+          /*cout << Residual[iVar] << "nu wall" << nu_hat[0] << endl;*/
+         }
+      
+        /*--- Viscous contribution to the residual at the wall ---*/
+        /*--- FM not sure if I should subtract or Add to the residual --*/
+    
+        LinSysRes.SubtractBlock(iPoint, Residual);
+
+        /*--- Nothing to do with the Jacobian ---*/
+
+        } else {
+      
+      	/*--- Get the velocity vector ---*/
+      
+      	for (iVar = 0; iVar < nVar; iVar++)
+          Solution[iVar] = 0.0;
+      
+      	node[iPoint]->SetSolution_Old(Solution);
+      	LinSysRes.SetBlock_Zero(iPoint);
+      
+      	/*--- includes 1 in the diagonal ---*/
+      
+      	Jacobian.DeleteValsRowi(iPoint);
+	}
     }
   }
   
