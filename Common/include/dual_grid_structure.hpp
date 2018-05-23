@@ -171,6 +171,7 @@ private:
   unsigned long GlobalIndex;          /*!< \brief Global index in the parallel simulation. */
   unsigned short nNeighbor;           /*!< \brief Number of neighbors. */
   bool Flip_Orientation;              /*!< \brief Flip the orientation of the normal. */
+  su2double Rough;                         /*!< \brief Equivalent sand grain value of the nearest no-slip wall rugosity. */
 
 public:
 	
@@ -223,6 +224,8 @@ public:
 	 * \param[in] val_distance - Value of the distance.
 	 */
 	void SetWall_Distance(su2double val_distance);
+	
+	
   
   /*!
 	 * \brief Set the value of the distance to a sharp edge.
@@ -407,6 +410,12 @@ public:
 	bool GetMove(void);
 	
 	/*! 
+	 * \brief Get information about the nearest no-slip wall.
+	 * \return <code>TRUE</code> if the point is closer to a rough wall; otherwise <code>FALSE</code>.
+	 */
+	su2double GetRough(void);
+	
+	/*! 
 	 * \brief Set if a point belong to the boundary.
 	 * \note It also create the structure to store the vertex.
 	 * \param[in] val_nmarker - Max number of marker.
@@ -570,6 +579,13 @@ public:
 	 * \param[in] val_move - true or false depending if the point will be moved.
 	 */
 	void SetMove(bool val_move);
+	
+	/*! 
+	 * \brief Set if a node is closer to a rough wall
+	 * \param[in] val_rough - true or false depending if the point is close to a rough wall.
+	 */
+	void SetRough(su2double val_rugosity);
+	
 	
 	/*! 
 	 * \brief Set the parent control volume of an agglomerated control volume.

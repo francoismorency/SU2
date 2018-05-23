@@ -78,6 +78,8 @@ inline su2double CPoint::GetVolume (void) { return Volume[0]; }
 
 inline bool CPoint::GetMove (void) { return Move; }
 
+inline su2double CPoint::GetRough (void) { return Rough; }
+
 inline bool CPoint::GetBoundary(void) { return Boundary; }
 
 inline void CPoint::SetBoundary(bool val_boundary) { Boundary = val_boundary; }
@@ -95,6 +97,8 @@ inline void CPoint::AddVolume (su2double val_Volume) { Volume[0] += val_Volume; 
 inline void CPoint::SetVolume (su2double val_Volume) { Volume[0] = val_Volume; }
 
 inline void CPoint::SetMove(bool val_move) { Move = val_move; }
+
+inline void CPoint::SetRough(su2double val_rugosity) { Rough = val_rugosity; }
 
 inline su2double *CPoint::GetCoord_Old(void) { return Coord_Old; }
 

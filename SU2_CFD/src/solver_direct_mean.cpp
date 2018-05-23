@@ -16025,7 +16025,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   Grad_Vel[3][3] = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}}, Grad_Temp[3] = {0.0, 0.0, 0.0},
   delta[3][3] = {{1.0, 0.0, 0.0},{0.0,1.0,0.0},{0.0,0.0,1.0}};
   su2double AxiFactor;
-  su2double eddy_viscosity = 0.0;
+  su2double Eddy_Viscosity = 0.0, Total_Viscosity = 0.0;
 
 #ifdef HAVE_MPI
   su2double MyAllBound_CD_Visc, MyAllBound_CL_Visc, MyAllBound_CSF_Visc, MyAllBound_CMx_Visc, MyAllBound_CMy_Visc, MyAllBound_CMz_Visc, MyAllBound_CFx_Visc, MyAllBound_CFy_Visc, MyAllBound_CFz_Visc, MyAllBound_CT_Visc, MyAllBound_CQ_Visc, MyAllBound_HF_Visc, MyAllBound_MaxHF_Visc, *MySurface_CL_Visc = NULL, *MySurface_CD_Visc = NULL, *MySurface_CSF_Visc = NULL, *MySurface_CEff_Visc = NULL, *MySurface_CFx_Visc = NULL, *MySurface_CFy_Visc = NULL, *MySurface_CFz_Visc = NULL, *MySurface_CMx_Visc = NULL, *MySurface_CMy_Visc = NULL, *MySurface_CMz_Visc = NULL, *MySurface_HF_Visc = NULL, *MySurface_MaxHF_Visc;
@@ -16135,9 +16135,9 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
 
         /*--- if rough wall then eddy viscosity not zero at wall ---*/
         if (rug_spalart_allmaras) {
-          eddy_viscosity = node[iPoint]->GetEddyViscosity();
-          Viscosity += eddy_viscosity;
+          Eddy_Viscosity = node[iPoint]->GetEddyViscosity();
         }
+        Total_Viscosity = Viscosity + Eddy_Viscosity;
         
         Area = 0.0; for (iDim = 0; iDim < nDim; iDim++) Area += Normal[iDim]*Normal[iDim]; Area = sqrt(Area);
         
@@ -16153,7 +16153,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
         
         for (iDim = 0; iDim < nDim; iDim++) {
           for (jDim = 0 ; jDim < nDim; jDim++) {
-            Tau[iDim][jDim] = Viscosity*(Grad_Vel[jDim][iDim] + Grad_Vel[iDim][jDim]) - TWO3*Viscosity*div_vel*delta[iDim][jDim];
+            Tau[iDim][jDim] = Total_Viscosity*(Grad_Vel[jDim][iDim] + Grad_Vel[iDim][jDim]) - TWO3*Total_Viscosity*div_vel*delta[iDim][jDim];
           }
         }
         
@@ -16193,7 +16193,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
           GradTemperature -= Grad_Temp[iDim]*UnitNormal[iDim];
 
         Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-        thermal_conductivity = Cp * Viscosity/Prandtl_Lam;
+        thermal_conductivity = Cp * ( Viscosity/Prandtl_Lam + Eddy_Viscosity/Prandtl_Turb );
         HeatFlux[iMarker][iVertex] = -thermal_conductivity*GradTemperature;
         HF_Visc[iMarker] += HeatFlux[iMarker][iVertex]*Area;
         MaxHF_Visc[iMarker] += pow(HeatFlux[iMarker][iVertex], MaxNorm);

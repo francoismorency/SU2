@@ -435,6 +435,8 @@ inline su2double CConfig::GetTurb2LamViscRatio_FreeStream(void) { return Turb2La
 
 inline su2double CConfig::GetRugosity_Wall(void) { return Rugosity_Wall; }
 
+inline su2double CConfig::GetConductivity_Rough(void) { return Conductivity_Rough; }
+
 inline su2double* CConfig::GetMassFrac_FreeStream(void) { return MassFrac_FreeStream; }
 
 inline su2double CConfig::GetLength_Reynolds(void) { return Length_Reynolds; }
@@ -1012,6 +1014,8 @@ inline void CConfig::SetMarker_All_TagBound(unsigned short val_marker, string va
 
 inline void CConfig::SetMarker_All_Monitoring(unsigned short val_marker, unsigned short val_monitoring) { Marker_All_Monitoring[val_marker] = val_monitoring; }
 
+inline void CConfig::SetMarker_All_Rough(unsigned short val_marker, unsigned short val_rough) { Marker_All_Rough[val_marker] = val_rough; }
+
 inline void CConfig::SetMarker_All_GeoEval(unsigned short val_marker, unsigned short val_geoeval) { Marker_All_GeoEval[val_marker] = val_geoeval; }
 
 inline void CConfig::SetMarker_All_Designing(unsigned short val_marker, unsigned short val_designing) { Marker_All_Designing[val_marker] = val_designing; }
@@ -1031,6 +1035,8 @@ inline void CConfig::SetMarker_All_PerBound(unsigned short val_marker, short val
 inline short CConfig::GetMarker_All_PerBound(unsigned short val_marker) { return Marker_All_PerBound[val_marker]; }
 
 inline unsigned short CConfig::GetMarker_All_Monitoring(unsigned short val_marker) { return Marker_All_Monitoring[val_marker]; }
+
+inline unsigned short CConfig::GetMarker_All_Rough(unsigned short val_marker) { return Marker_All_Rough[val_marker]; }
 
 inline void CConfig::SetMarker_All_Out_1D(unsigned short val_marker, unsigned short val_boundary) { Marker_All_Out_1D[val_marker] = val_boundary; }
 

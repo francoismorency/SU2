@@ -162,6 +162,7 @@ CDriver::CDriver(char* confFile,
         (config_container[iZone]->GetKind_Solver() == ADJ_RANS) ||
         (config_container[iZone]->GetKind_Solver() == DISC_ADJ_RANS))
       geometry_container[iZone][MESH_0]->ComputeWall_Distance(config_container[iZone]);
+      geometry_container[iZone][MESH_0]->SetRough_Zone(config_container[iZone]);
 
     /*--- Computation of positive surface area in the z-plane which is used for
      the calculation of force coefficient (non-dimensionalization). ---*/
@@ -328,7 +329,10 @@ CDriver::CDriver(char* confFile,
       if ( (config_container[iZone]->GetKind_Solver() == RANS) ||
           (config_container[iZone]->GetKind_Solver() == ADJ_RANS) ||
           (config_container[iZone]->GetKind_Solver() == DISC_ADJ_RANS))
+          /*--- Distance for all mesh node to smooth wall ---*/
         geometry_container[iZone][MESH_0]->ComputeWall_Distance(config_container[iZone]);
+         /*--- Distance for all mesh node to rough wall ---*/
+        geometry_container[iZone][MESH_0]->SetRough_Zone(config_container[iZone]);       
     }
   }
 

@@ -326,6 +326,12 @@ public:
 	 * \param[in] config - Definition of the particular problem.		 
 	 */
 	virtual void ComputeWall_Distance(CConfig *config);
+	
+	/*! 
+	 * \brief A virtual member.
+	 * \param[in] config - Definition of the particular problem.		 
+	 */
+	virtual void SetRough_Zone(CConfig *config);	
 
 	/*! 
 	 * \brief A virtual member.
@@ -1055,6 +1061,12 @@ public:
 	 * \param[in] config - Definition of the particular problem.
 	 */
 	void ComputeWall_Distance(CConfig *config);
+	
+	/*! 
+	 * \brief Mark node if the nearest no-slip wall from the grid node is rough 
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void SetRough_Zone(CConfig *config);	
 
 	/*! 
 	 * \brief Compute surface area (positive z-direction) for force coefficient non-dimensionalization.

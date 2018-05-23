@@ -173,6 +173,7 @@ private:
   nMarker_FarField,				/*!< \brief Number of far-field markers. */
   nMarker_Custom,
   nMarker_SymWall,				/*!< \brief Number of symmetry wall markers. */
+  nMarker_RoughWall,				/*!< \brief Number of rough wall markers. */
   nMarker_Pressure,				/*!< \brief Number of pressure wall markers. */
   nMarker_PerBound,				/*!< \brief Number of periodic boundary markers. */
   nMarker_MixBound,				/*!< \brief Number of mixing boundary markers. */
@@ -210,6 +211,7 @@ private:
   *Marker_FarField,				/*!< \brief Far field markers. */
   *Marker_Custom,
   *Marker_SymWall,				/*!< \brief Symmetry wall markers. */
+  *Marker_RoughWall,				/*!< \brief Rough wall markers. */
   *Marker_Pressure,				/*!< \brief Pressure boundary markers. */
   *Marker_PerBound,				/*!< \brief Periodic boundary markers. */
   *Marker_PerDonor,				/*!< \brief Rotationally periodic boundary donor markers. */
@@ -557,6 +559,7 @@ private:
   *Marker_Moving,            /*!< \brief Markers in motion (DEFORMING, MOVING_WALL, or FLUID_STRUCTURE). */
   *Marker_DV;            /*!< \brief Markers affected by the design variables. */
   unsigned short  *Marker_All_Monitoring,        /*!< \brief Global index for monitoring using the grid information. */
+  *Marker_All_Rough,  /*!< \brief Global index for rough marker using the grid information. */
   *Marker_All_GeoEval,       /*!< \brief Global index for geometrical evaluation. */
   *Marker_All_Plotting,        /*!< \brief Global index for plotting using the grid information. */
   *Marker_All_Analyze,        /*!< \brief Global index for plotting using the grid information. */
@@ -566,6 +569,7 @@ private:
   *Marker_All_Designing,         /*!< \brief Global index for moving using the grid information. */
   *Marker_All_Out_1D,      /*!< \brief Global index for moving using 1D integrated output. */
   *Marker_CfgFile_Monitoring,     /*!< \brief Global index for monitoring using the config information. */
+  *Marker_CfgFile_Rough, /*!< \brief Global index for rough wall using the config information. */
   *Marker_CfgFile_Designing,      /*!< \brief Global index for monitoring using the config information. */
   *Marker_CfgFile_GeoEval,      /*!< \brief Global index for monitoring using the config information. */
   *Marker_CfgFile_Plotting,     /*!< \brief Global index for plotting using the config information. */
@@ -667,6 +671,7 @@ private:
   Turb2LamViscRatio_FreeStream,          /*!< \brief Ratio of turbulent to laminar viscosity. */
   NuFactor_FreeStream,  /*!< \brief Ratio of turbulent to laminar viscosity. */
   Rugosity_Wall, /* !< \brief Constant rugosity at walls for SA_Rough model */
+  Conductivity_Rough, /* !< \brief Constant for roughness thermal conductivity  for SA_Rough model */
   NuFactor_Engine,  /*!< \brief Ratio of turbulent to laminar viscosity at the engine. */
   SecondaryFlow_ActDisk,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
   Initial_BCThrust,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
@@ -1630,7 +1635,12 @@ public:
    * \return equivalent sand grain roughness.
    */
   su2double GetRugosity_Wall(void);
-  
+ 
+ /*!
+   * \brief Get the value of the roughness thermal conductivity  at wall.
+   * \return roughness thermal conductivity.
+   */
+  su2double GetConductivity_Rough(void); 
   
   /*!
    * \brief Get the value of the non-dimensionalized actuator disk turbulence intensity.
@@ -2338,6 +2348,11 @@ public:
    */
   unsigned short GetnMarker_Out_1D(void);
   
+   /*!
+   * \brief Get the total number of rough markers.
+   * \return Total number of rough markers.
+   */
+  unsigned short GetnMarker_Rough(void);
   
   /*!
    * \brief Get the total number of monitoring markers.
@@ -2687,6 +2702,15 @@ public:
   void SetMarker_All_Monitoring(unsigned short val_marker, unsigned short val_monitoring);
   
   /*!
+   * \brief Set if a marker <i>val_marker</i> is going to be rough <i>val_rough</i>
+   *        (read from the config file).
+   * \note This is important for turbulent SA roughness simulation.
+   * \param[in] val_marker - Index of the marker in which we are interested.
+   * \param[in] val_rough - 0 or 1 depending if the the marker is going to be rough.
+   */
+  void SetMarker_All_Rough(unsigned short val_marker, unsigned short val_rough);
+  
+  /*!
    * \brief Set if a marker <i>val_marker</i> is going to be monitored <i>val_monitoring</i>
    *        (read from the config file).
    * \note This is important for non dimensional coefficient computation.
@@ -2781,6 +2805,13 @@ public:
    * \return 0 or 1 depending if the marker is going to be monitored.
    */
   unsigned short GetMarker_All_Monitoring(unsigned short val_marker);
+  
+  /*!
+   * \brief Get the rough information for a marker <i>val_marker</i>.
+   * \param[in] val_marker - 0 or 1 depending if the the marker is going to be rough.
+   * \return 0 or 1 depending if the marker is going to be rough.
+   */
+  unsigned short GetMarker_All_Rough(unsigned short val_marker);
   
   /*!
    * \brief Get the monitoring information for a marker <i>val_marker</i>.
@@ -4722,6 +4753,12 @@ public:
    * \return Monitoring information of the boundary in the config information for the marker <i>val_marker</i>.
    */
   unsigned short GetMarker_CfgFile_Monitoring(string val_marker);
+  
+   /*!
+   * \brief Get the rough information from the config definition for the marker <i>val_marker</i>.
+   * \return Rough information of the boundary in the config information for the marker <i>val_marker</i>.
+   */
+  unsigned short GetMarker_CfgFile_Rough(string val_marker);
   
   /*!
    * \brief Get the monitoring information from the config definition for the marker <i>val_marker</i>.

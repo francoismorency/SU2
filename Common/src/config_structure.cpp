@@ -305,7 +305,7 @@ void CConfig::SetPointersNull(void) {
   Marker_Euler                = NULL;    Marker_FarField         = NULL;    Marker_Custom         = NULL;
   Marker_SymWall              = NULL;    Marker_Pressure         = NULL;    Marker_PerBound       = NULL;
   Marker_PerDonor             = NULL;    Marker_NearFieldBound   = NULL;    Marker_InterfaceBound = NULL;
-  Marker_Dirichlet            = NULL;    Marker_Inlet            = NULL;    
+  Marker_Dirichlet            = NULL;    Marker_Inlet            = NULL;    Marker_RoughWall      = NULL;
   Marker_Supersonic_Inlet     = NULL;    Marker_Outlet           = NULL;    Marker_Out_1D         = NULL;
   Marker_Isothermal           = NULL;    Marker_HeatFlux         = NULL;    Marker_EngineInflow   = NULL;
   Marker_Supersonic_Outlet    = NULL;    Marker_Load             = NULL;    
@@ -650,6 +650,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION:  */
   addDoubleOption("RUGOSITY_WALL", Rugosity_Wall, 0.0);
   /* DESCRIPTION:  */
+  addDoubleOption("CONDUCTIVITY_ROUGH",Conductivity_Rough,0.0);
+  /* DESCRIPTION:  */
   addDoubleOption("ACTDISK_SECONDARY_FLOW", SecondaryFlow_ActDisk, 0.0);
   /* DESCRIPTION:  */
   addDoubleOption("INITIAL_BCTHRUST", Initial_BCThrust, 4000.0);
@@ -738,6 +740,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addStringListOption("MARKER_FAR", nMarker_FarField, Marker_FarField);
   /*!\brief MARKER_SYM\n DESCRIPTION: Symmetry boundary condition \ingroup Config*/
   addStringListOption("MARKER_SYM", nMarker_SymWall, Marker_SymWall);
+  /*!\brief MARKER_ROUGH\n DESCRIPTION: Rough wall boundary condition \ingroup Config*/
+  addStringListOption("MARKER_ROUGH", nMarker_RoughWall, Marker_RoughWall);
   /*!\brief MARKER_PRESSURE\n DESCRIPTION: Symmetry boundary condition \ingroup Config*/
   addStringListOption("MARKER_PRESSURE", nMarker_Pressure, Marker_Pressure);
   /*!\brief MARKER_NEARFIELD\n DESCRIPTION: Near-Field boundary condition \ingroup Config*/
@@ -3103,7 +3107,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 void CConfig::SetMarkers(unsigned short val_software) {
 
   unsigned short iMarker_All, iMarker_CfgFile, iMarker_Euler, iMarker_Custom,
-  iMarker_FarField, iMarker_SymWall, iMarker_Pressure, iMarker_PerBound,
+  iMarker_FarField, iMarker_SymWall, iMarker_RoughWall, iMarker_Pressure, iMarker_PerBound,
   iMarker_NearFieldBound, iMarker_InterfaceBound, iMarker_Fluid_InterfaceBound, iMarker_Dirichlet,
   iMarker_Inlet, iMarker_Riemann, iMarker_NRBC, iMarker_Outlet, iMarker_Isothermal,
   iMarker_HeatFlux, iMarker_EngineInflow, iMarker_EngineExhaust, 
@@ -3122,7 +3126,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
 
   /*--- Compute the total number of markers in the config file ---*/
   
-  nMarker_CfgFile = nMarker_Euler + nMarker_FarField + nMarker_SymWall +
+  nMarker_CfgFile = nMarker_Euler + nMarker_FarField + nMarker_SymWall + nMarker_RoughWall +
   nMarker_Pressure + nMarker_PerBound + nMarker_NearFieldBound + nMarker_Fluid_InterfaceBound +
   nMarker_InterfaceBound + nMarker_Dirichlet + nMarker_Neumann + nMarker_Inlet + nMarker_Riemann +
   nMarker_NRBC + nMarker_Outlet + nMarker_Isothermal + nMarker_HeatFlux + 
@@ -3145,6 +3149,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
   Marker_All_TagBound       = new string[nMarker_All];			    // Store the tag that correspond with each marker.
   Marker_All_SendRecv       = new short[nMarker_All];						// +#domain (send), -#domain (receive).
   Marker_All_KindBC         = new unsigned short[nMarker_All];	// Store the kind of boundary condition.
+  Marker_All_Rough          = new unsigned short[nMarker_All];	// Store whether the boundary ia a rough wall.
   Marker_All_Monitoring     = new unsigned short[nMarker_All];	// Store whether the boundary should be monitored.
   Marker_All_Designing      = new unsigned short[nMarker_All];  // Store whether the boundary should be designed.
   Marker_All_Plotting       = new unsigned short[nMarker_All];	// Store whether the boundary should be plotted.
@@ -3160,6 +3165,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_All_TagBound[iMarker_All]      = "SEND_RECEIVE";
     Marker_All_SendRecv[iMarker_All]      = 0;
     Marker_All_KindBC[iMarker_All]        = 0;
+    Marker_All_Rough[iMarker_All]         = 0;
     Marker_All_Monitoring[iMarker_All]    = 0;
     Marker_All_GeoEval[iMarker_All]       = 0;
     Marker_All_Designing[iMarker_All]     = 0;
@@ -3176,12 +3182,13 @@ void CConfig::SetMarkers(unsigned short val_software) {
 
   Marker_CfgFile_TagBound      = new string[nMarker_CfgFile];
   Marker_CfgFile_KindBC        = new unsigned short[nMarker_CfgFile];
+  Marker_CfgFile_Rough         = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Monitoring    = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Designing     = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Plotting      = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Analyze       = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_GeoEval       = new unsigned short[nMarker_CfgFile];
-  Marker_CfgFile_FSIinterface	 = new unsigned short[nMarker_CfgFile];
+  Marker_CfgFile_FSIinterface  = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_DV            = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Moving        = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_PerBound      = new unsigned short[nMarker_CfgFile];
@@ -3190,11 +3197,12 @@ void CConfig::SetMarkers(unsigned short val_software) {
   for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile]      = "SEND_RECEIVE";
     Marker_CfgFile_KindBC[iMarker_CfgFile]        = 0;
+    Marker_CfgFile_Rough[iMarker_CfgFile]         = 0;
     Marker_CfgFile_Monitoring[iMarker_CfgFile]    = 0;
     Marker_CfgFile_GeoEval[iMarker_CfgFile]       = 0;
     Marker_CfgFile_Designing[iMarker_CfgFile]     = 0;
     Marker_CfgFile_Plotting[iMarker_CfgFile]      = 0;
-    Marker_CfgFile_Analyze[iMarker_CfgFile] = 0;
+    Marker_CfgFile_Analyze[iMarker_CfgFile]       = 0;
     Marker_CfgFile_FSIinterface[iMarker_CfgFile]  = 0;
     Marker_CfgFile_DV[iMarker_CfgFile]            = 0;
     Marker_CfgFile_Moving[iMarker_CfgFile]        = 0;
@@ -3238,12 +3246,15 @@ void CConfig::SetMarkers(unsigned short val_software) {
     iMarker_CfgFile++;
   }
 
+
   for (iMarker_Pressure = 0; iMarker_Pressure < nMarker_Pressure; iMarker_Pressure++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Pressure[iMarker_Pressure];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = PRESSURE_BOUNDARY;
     iMarker_CfgFile++;
   }
+  
 
+  
   for (iMarker_PerBound = 0; iMarker_PerBound < nMarker_PerBound; iMarker_PerBound++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_PerBound[iMarker_PerBound];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = PERIODIC_BOUNDARY;
@@ -3534,6 +3545,13 @@ void CConfig::SetMarkers(unsigned short val_software) {
       if (Marker_CfgFile_TagBound[iMarker_CfgFile] == Marker_Monitoring[iMarker_Monitoring])
         Marker_CfgFile_Monitoring[iMarker_CfgFile] = YES;
   }
+  
+  for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++) {
+    Marker_CfgFile_Rough[iMarker_CfgFile] = NO;
+    for (iMarker_RoughWall = 0; iMarker_RoughWall < nMarker_RoughWall; iMarker_RoughWall++)
+      if (Marker_CfgFile_TagBound[iMarker_CfgFile] == Marker_RoughWall[iMarker_RoughWall])
+        Marker_CfgFile_Rough[iMarker_CfgFile] = YES;
+  }
 
   for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++) {
     Marker_CfgFile_GeoEval[iMarker_CfgFile] = NO;
@@ -3600,7 +3618,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
 void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 
   unsigned short iMarker_Euler, iMarker_Custom, iMarker_FarField,
-  iMarker_SymWall, iMarker_PerBound, iMarker_Pressure, iMarker_NearFieldBound,
+  iMarker_SymWall, iMarker_RoughWall, iMarker_PerBound, iMarker_Pressure, iMarker_NearFieldBound,
   iMarker_InterfaceBound, iMarker_Fluid_InterfaceBound, iMarker_Dirichlet, iMarker_Inlet, iMarker_Riemann,
   iMarker_NRBC, iMarker_MixBound, iMarker_Outlet, iMarker_Isothermal, iMarker_HeatFlux, 
   iMarker_EngineInflow, iMarker_EngineExhaust, iMarker_Displacement,
@@ -3687,7 +3705,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA:     cout << "Spalart Allmaras" << endl; break;
           case SA_NEG: cout << "Negative Spalart Allmaras" << endl; break;
           case SST:    cout << "Menter's SST"     << endl; break;
-          case SA_ROUGH:    cout << "Rough wall Spalart Allmaras ks: " << Rugosity_Wall << "." << endl; break;
+          case SA_ROUGH:    cout << "Rough wall Spalart Allmaras ks: " << Rugosity_Wall << " Conductivity roughness:" << Conductivity_Rough << "." << endl; break;
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;
@@ -4643,6 +4661,15 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     }
   }
 
+ if (nMarker_RoughWall != 0) {
+    cout << "Rough wall boundary marker(s): ";
+    for (iMarker_RoughWall = 0; iMarker_RoughWall < nMarker_RoughWall; iMarker_RoughWall++) {
+      cout << Marker_RoughWall[iMarker_RoughWall];
+      if (iMarker_RoughWall < nMarker_RoughWall-1) cout << ", ";
+      else cout <<"."<< endl;
+    }
+  }
+
   if (nMarker_Pressure != 0) {
     cout << "Pressure boundary marker(s): ";
     for (iMarker_Pressure = 0; iMarker_Pressure < nMarker_Pressure; iMarker_Pressure++) {
@@ -5075,6 +5102,13 @@ unsigned short CConfig::GetMarker_CfgFile_KindBC(string val_marker) {
   return Marker_CfgFile_KindBC[iMarker_CfgFile];
 }
 
+unsigned short CConfig::GetMarker_CfgFile_Rough(string val_marker) {
+  unsigned short iMarker_CfgFile;
+  for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++)
+    if (Marker_CfgFile_TagBound[iMarker_CfgFile] == val_marker) break;
+  return Marker_CfgFile_Rough[iMarker_CfgFile];
+}
+
 unsigned short CConfig::GetMarker_CfgFile_Monitoring(string val_marker) {
   unsigned short iMarker_CfgFile;
   for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++)
@@ -5471,6 +5505,7 @@ CConfig::~CConfig(void) {
   if (Marker_FarField != NULL )           delete[] Marker_FarField;
   if (Marker_Custom != NULL )             delete[] Marker_Custom;
   if (Marker_SymWall != NULL )            delete[] Marker_SymWall;
+  if (Marker_RoughWall != NULL )            delete[] Marker_RoughWall;
   if (Marker_Pressure != NULL )           delete[] Marker_Pressure;
   if (Marker_PerBound != NULL )           delete[] Marker_PerBound;
   if (Marker_PerDonor != NULL )           delete[] Marker_PerDonor;

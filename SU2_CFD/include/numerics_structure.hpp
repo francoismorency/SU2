@@ -114,6 +114,8 @@ public:
   Enthalpy_j;      /*!< \brief Enthalpy at point j. */
   su2double dist_i,  /*!< \brief Distance of point i to the nearest wall. */
   dist_j;      /*!< \brief Distance of point j to the nearest wall. */
+  su2double ks_i, /*!< \equivalent sand grain roughness of the nearest wall of point i. */
+  ks_j; /*!< \equivalent sand grain roughness of the nearest wall of point j. */
   su2double Temp_i,  /*!< \brief Temperature at point i. */
   Temp_j;      /*!< \brief Temperature at point j. */
   su2double *Temp_tr_i, /*!< \brief Temperature transl-rot at point i. */
@@ -521,6 +523,13 @@ public:
    * \param[in] val_dist_j - Value of of the distance from point j to the nearest wall.
    */
   void SetDistance(su2double val_dist_i, su2double val_dist_j);
+  
+  /*!
+   * \brief Set the value of the equivalent sand grain roughness from the nearest wall.
+   * \param[in] val_rough_i - Value of of the equivalent sand grain roughness at point i from the nearest wall.
+   * \param[in] val_rough_j - Value of of the equivalent sand grain roughness at point i from the nearest wall.
+   */
+  void SetRugosity(su2double val_rough_i, su2double val_rough_j);
   
   /*!
    * \brief Set coordinates of the points.

@@ -1542,6 +1542,9 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
     
     numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
     
+    /*--- Set rugosity corresponding to nearest wall ---*/
+    numerics->SetRugosity(geometry->node[iPoint]->GetRough(), 0.0);
+    
     /*--- Compute the source term ---*/
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
@@ -1601,8 +1604,8 @@ void CTurbSASolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_conta
     
     if (geometry->node[iPoint]->GetDomain()) {
  
-      /*--- Special BC if rough wall: Newman ---*/
-      if (rug_spalart_allmaras) {
+      /*--- Special BC if rough wall and SA rug: Newman ---*/
+      if ((rug_spalart_allmaras) && (config->GetMarker_All_Rough(val_marker))) {
 
         /*--- Get nutilde value at the wall and roughness from config ---*/
         nu_hat = node[iPoint]->GetSolution();
@@ -1665,7 +1668,8 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
   unsigned short iVar,iDim;
   su2double *nu_hat, ks, dist_new, Area, *Normal,rho,mu,nu; 
   bool rug_spalart_allmaras = (config->GetKind_Turb_Model() == SA_ROUGH);
-  
+  bool Rough = config->GetMarker_All_Rough(val_marker);
+ 
   for (iVertex = 0; iVertex < geometry->nVertex[val_marker]; iVertex++) {
     iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
     
@@ -1673,12 +1677,14 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
     
     if (geometry->node[iPoint]->GetDomain()) {
    
-      /*--- Special BC if rough wall: Newman ---*/
-      if (rug_spalart_allmaras) {
-
+      /*--- Special BC if rough wall and ks > 0: Newman ---*/
+      ks = geometry->node[iPoint]->GetRough();
+      if ((rug_spalart_allmaras) 
+      && (ks > 1e-10) 
+      ){
       /*--- Get nutilde value at the wall and roughness from config ---*/
       nu_hat = node[iPoint]->GetSolution();
-      ks = config->GetRugosity_Wall();
+      
       dist_new = 0.03*ks;
       
       /*--- Compute dual-grid area ---*/
@@ -1688,7 +1694,7 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
       Area = 0.0;
       for (iDim = 0; iDim < nDim; iDim++)
         Area += Normal[iDim]*Normal[iDim];
-      Area = sqrt (Area);  
+        Area = sqrt (Area);  
       
       /*--- Get transport coefficients ---*/
       
@@ -1701,8 +1707,13 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
       /*--- FM not sure I should multiply by Area ---*/
       su2double sigma = 2./3.;
       for (iVar = 0; iVar < nVar; iVar++) {
-        Residual[iVar] =  Area/sigma*(nu+nu_hat[0])*nu_hat[0]/dist_new;
-        /*cout << Residual[iVar] << "nu wall" << nu_hat[0] << endl;*/
+       // if (Rough) {
+          Residual[iVar] =  Area/sigma*(nu+nu_hat[0])*nu_hat[0]/dist_new;
+       //   cout << Residual[iVar] << "nu wall" << nu_hat[0] << endl;
+       // }
+       // else {
+       //   Residual[iVar] = 0.0;
+       // }
       }
       
       /*--- Viscous contribution to the residual at the wall ---*/
@@ -3060,6 +3071,7 @@ void CTurbSSTSolver::Source_Residual(CGeometry *geometry, CSolver **solver_conta
     /*--- Set distance to the surface ---*/
     
     numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
+    
     
     /*--- Menter's first blending function ---*/
     

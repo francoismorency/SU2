@@ -1077,6 +1077,7 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
   su2double vmag, rey, re_theta, re_theta_t, re_v;
   su2double tu , nu_cr, nu_t, nu_BC, chi_1, chi_2, gamma_BC, term1, term2, term_exponential;
 //  Rough Wall Model variables
+  /*--- not needed anymore  ---*/
   su2double ks;
 
   if (incompressible) {
@@ -1098,8 +1099,8 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
   vmag = 0.0;
   tu   = config->GetTurbulenceIntensity_FreeStream();
   rey  = config->GetReynolds();
-  ks = config->GetRugosity_Wall();
-
+  /*--- not needed variable according to zone ---*/
+  // ks = config->GetRugosity_Wall(); 
   if (nDim==2) {
     vmag = sqrt(V_i[1]*V_i[1]+V_i[2]*V_i[2]);
   }
@@ -1117,7 +1118,7 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
 
   /*--- Rough wall distance correction ---*/
 
-  dist_new = dist_i + 0.03*ks;
+  dist_new = dist_i + 0.03*ks_i;
   
   if (dist_new > 1e-10) {
     
@@ -1125,11 +1126,16 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
     
     dist_new_2 = dist_new*dist_new;
     nu = Laminar_Viscosity_i/Density_i;
-    Ji = TurbVar_i[0]/nu+cr1*ks/dist_new;
+    Ji = TurbVar_i[0]/nu+cr1*ks_i/dist_new;
     Ji_2 = Ji*Ji;
     Ji_3 = Ji_2*Ji;
     fv1 = Ji_3/(Ji_3+cv1_3);
-    fv2 = 1.0 - TurbVar_i[0]/(nu+TurbVar_i[0]*fv1);
+    if (ks_i > 1e-10) {
+     fv2 = 1.0 - TurbVar_i[0]/(nu+TurbVar_i[0]*fv1);
+    }
+    else {
+     fv2 = 1.0 - Ji/(1.0+Ji*fv1);
+    }
     ft2 = ct3*exp(-ct4*Ji_2);
     S = Omega;
     inv_k2_d2 = 1.0/(k2*dist_new_2);

@@ -235,6 +235,11 @@ inline void CNumerics::SetTurbKineticEnergy(su2double val_turb_ke_i, su2double v
   turb_ke_j = val_turb_ke_j;
 }
 
+inline void CNumerics::SetRugosity(su2double val_rough_i, su2double val_rough_j) {
+  ks_i = val_rough_i;
+  ks_j = val_rough_j;
+}
+
 inline void CNumerics::SetDistance(su2double val_dist_i, su2double val_dist_j) {
   dist_i = val_dist_i;
   dist_j = val_dist_j;

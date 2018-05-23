@@ -4752,6 +4752,7 @@ void CPhysicalGeometry::SetBoundaries(CConfig *config) {
       
       Tag_to_Marker[config->GetMarker_CfgFile_TagBound(Marker_Tag)] = Marker_Tag;
       config->SetMarker_All_KindBC(iMarker, config->GetMarker_CfgFile_KindBC(Marker_Tag));
+      config->SetMarker_All_Rough(iMarker, config->GetMarker_CfgFile_Rough(Marker_Tag));
       config->SetMarker_All_Monitoring(iMarker, config->GetMarker_CfgFile_Monitoring(Marker_Tag));
       config->SetMarker_All_GeoEval(iMarker, config->GetMarker_CfgFile_GeoEval(Marker_Tag));
       config->SetMarker_All_Designing(iMarker, config->GetMarker_CfgFile_Designing(Marker_Tag));
@@ -4770,6 +4771,7 @@ void CPhysicalGeometry::SetBoundaries(CConfig *config) {
     else {
       
       config->SetMarker_All_KindBC(iMarker, SEND_RECEIVE);
+      config->SetMarker_All_Rough(iMarker, NO);
       config->SetMarker_All_Monitoring(iMarker, NO);
       config->SetMarker_All_GeoEval(iMarker, NO);
       config->SetMarker_All_Designing(iMarker, NO);
@@ -6693,6 +6695,7 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
             Tag_to_Marker[config->GetMarker_CfgFile_TagBound(Marker_Tag)] = Marker_Tag;
             config->SetMarker_All_TagBound(iMarker, Marker_Tag);
             config->SetMarker_All_KindBC(iMarker, config->GetMarker_CfgFile_KindBC(Marker_Tag));
+            config->SetMarker_All_Rough(iMarker, config->GetMarker_CfgFile_Rough(Marker_Tag));
             config->SetMarker_All_Monitoring(iMarker, config->GetMarker_CfgFile_Monitoring(Marker_Tag));
             config->SetMarker_All_GeoEval(iMarker, config->GetMarker_CfgFile_GeoEval(Marker_Tag));
             config->SetMarker_All_Designing(iMarker, config->GetMarker_CfgFile_Designing(Marker_Tag));
@@ -6709,6 +6712,7 @@ void CPhysicalGeometry::Read_SU2_Format_Parallel(CConfig *config, string val_mes
               Tag_to_Marker[config->GetMarker_CfgFile_TagBound(Marker_Tag_Duplicate)] = Marker_Tag_Duplicate;
               config->SetMarker_All_TagBound(iMarker+1, Marker_Tag_Duplicate);
               config->SetMarker_All_KindBC(iMarker+1, config->GetMarker_CfgFile_KindBC(Marker_Tag_Duplicate));
+              config->SetMarker_All_Rough(iMarker+1, config->GetMarker_CfgFile_Rough(Marker_Tag_Duplicate));
               config->SetMarker_All_Monitoring(iMarker+1, config->GetMarker_CfgFile_Monitoring(Marker_Tag_Duplicate));
               config->SetMarker_All_GeoEval(iMarker+1, config->GetMarker_CfgFile_GeoEval(Marker_Tag_Duplicate));
               config->SetMarker_All_Designing(iMarker+1, config->GetMarker_CfgFile_Designing(Marker_Tag_Duplicate));
@@ -8430,6 +8434,7 @@ void CPhysicalGeometry::Read_CGNS_Format_Parallel(CConfig *config, string val_me
             Tag_to_Marker[config->GetMarker_CfgFile_TagBound(Marker_Tag)] = Marker_Tag;
             config->SetMarker_All_TagBound(iMarker, Marker_Tag);
             config->SetMarker_All_KindBC(iMarker, config->GetMarker_CfgFile_KindBC(Marker_Tag));
+            config->SetMarker_All_Rough(iMarker, config->GetMarker_CfgFile_Rough(Marker_Tag));
             config->SetMarker_All_Monitoring(iMarker, config->GetMarker_CfgFile_Monitoring(Marker_Tag));
             config->SetMarker_All_GeoEval(iMarker, config->GetMarker_CfgFile_GeoEval(Marker_Tag));
             config->SetMarker_All_Designing(iMarker, config->GetMarker_CfgFile_Designing(Marker_Tag));
@@ -8989,12 +8994,15 @@ void CPhysicalGeometry::Check_BoundElem_Orientation(CConfig *config) {
 
 void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
 
-  /*--- Compute the total number of nodes on no-slip boundaries ---*/
+  /*--- Compute the total number of nodes on smooth no-slip boundaries ---*/
 
   unsigned long nVertex_SolidWall = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
     if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) ) {
+       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) 
+       &&
+       !(config->GetMarker_All_Rough(iMarker) ) 
+       ) {
       nVertex_SolidWall += GetnVertex(iMarker);
     }
   }
@@ -9006,12 +9014,13 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   vector<unsigned long> PointIDs(nVertex_SolidWall);
 
   /*--- Retrieve and store the coordinates of the no-slip boundary nodes
-   and their local point IDs. ---*/
+   and their local point IDs. Exclude rough wall---*/
 
   unsigned long ii = 0, jj = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
     if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) ) {
+       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)  &&
+       !(config->GetMarker_All_Rough(iMarker) ) ) {
       for(unsigned long iVertex=0; iVertex<GetnVertex(iMarker); ++iVertex) {
         unsigned long iPoint = vertex[iMarker][iVertex]->GetNode();
         PointIDs[jj++] = iPoint;
@@ -9032,10 +9041,10 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   if( WallADT.IsEmpty() ) {
   
     /*--- No solid wall boundary nodes in the entire mesh.
-     Set the wall distance to zero for all nodes. ---*/
+     Set the wall distance to 1000. for all nodes. ---*/
     
     for(unsigned long iPoint=0; iPoint<GetnPoint(); ++iPoint)
-      node[iPoint]->SetWall_Distance(0.0);
+      node[iPoint]->SetWall_Distance(1000.0);
   }
   else {
 
@@ -9056,11 +9065,110 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   
 }
 
+void CPhysicalGeometry::SetRough_Zone(CConfig *config) {
+
+  /*--- Compute the total number of nodes on rough boundaries ---*/
+
+  unsigned long nVertex_SolidWall = 0;
+  for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
+    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) &&
+        (config->GetMarker_All_Rough(iMarker) ) ) {
+      nVertex_SolidWall += GetnVertex(iMarker);
+    }
+  }
+
+  /*--- Allocate the vectors to hold boundary node coordinates
+   and its local ID. ---*/
+  vector<su2double>     Coord_bound(nDim*nVertex_SolidWall);
+  vector<unsigned long> PointIDs(nVertex_SolidWall);
+
+  /*--- Retrieve and store the coordinates of the rough boundary nodes
+   and their local point IDs. ---*/
+
+  unsigned long ii = 0, jj = 0;
+  for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
+    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) &&
+        (config->GetMarker_All_Rough(iMarker) ) ) {
+      for(unsigned long iVertex=0; iVertex<GetnVertex(iMarker); ++iVertex) {
+        unsigned long iPoint = vertex[iMarker][iVertex]->GetNode();
+        PointIDs[jj++] = iPoint;
+        for(unsigned short iDim=0; iDim<nDim; ++iDim)
+          Coord_bound[ii++] = node[iPoint]->GetCoord(iDim);
+      }
+    }
+  }
+
+  /*--- Build the ADT of the rough boundary nodes. ---*/
+
+  su2_adtPointsOnlyClass WallADT(nDim, nVertex_SolidWall, Coord_bound.data(), PointIDs.data());
+
+  /*--- Loop over all interior mesh nodes and compute the distances to each
+   of the rough no-slip boundary nodes. Compare with distance to no-slip boundary
+   node already computed.  Then store the minimum distance to the wall
+   for each interior mesh node. ---*/
+
+  if( WallADT.IsEmpty() ) {
+  
+    /*--- No rough solid wall boundary nodes in the entire mesh.
+     Do nothing with the wall distance for all nodes.
+     Mark node as no rough ---*/
+    
+    for(unsigned long iPoint=0; iPoint<GetnPoint(); ++iPoint)
+      node[iPoint]->SetRough(0);
+  }
+  else {
+
+    /*--- Solid rough wall boundary nodes are present. Compute the wall
+     distance for all nodes. ---*/
+    su2double ks = config->GetRugosity_Wall();
+    su2double ks_int;
+    
+    for(unsigned long iPoint=0; iPoint<GetnPoint(); ++iPoint) {
+      
+      su2double dist_rough, dist_smooth;
+      unsigned long pointID;
+      int rankID;
+      
+      WallADT.DetermineNearestNode(node[iPoint]->GetCoord(), dist_rough,
+                                   pointID, rankID);
+      dist_smooth = node[iPoint]->GetWall_Distance(); 
+      /*--- spatial interpolation for node roughness value between rough wall
+      and smooth wall : Inverse distance weighting ---*/
+         if ( dist_rough > 1e-6 ) {
+           ks_int= ks*pow((1./dist_rough),1.)/(pow((1./dist_rough),1.)+pow((1./dist_smooth),1.));
+         } else 
+         {
+           ks_int=ks;
+           /*--- the node is both a smooth wall and a rough wall ---*/
+           //if ( dist_smooth < 1e-6 ) ks_int = ks_int;
+           //if ( dist_smooth < 1e-10) cout << " dist " << dist_rough << " x " << node[iPoint]->GetCoord(0) << " inode " << iPoint << endl; 
+         }
+           
+         if ( ks_int < 0.01*ks ) ks_int = 0.0;
+         node[iPoint]->SetRough(ks_int);
+         //cout << "ks  " << ks_int << " " << dist_rough << " " << dist_smooth << endl;
+      //}  
+      /*--- either the rough wall is nearer or there is no other wall ---*/                          
+      if ( ( dist_rough < dist_smooth ) 
+      //||
+      // ( dist_smooth < 1e-10 ) 
+      ) {              
+        node[iPoint]->SetWall_Distance(dist_rough);
+      }
+    }
+  }
+  
+  
+}
+
 void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {
-  unsigned short iMarker, Boundary, Monitoring;
+  unsigned short iMarker, Boundary, Monitoring, Rough;
   unsigned long iVertex, iPoint;
-  su2double *Normal, PositiveXArea, PositiveYArea, PositiveZArea, WettedArea;
+  su2double *Normal, PositiveXArea, PositiveYArea, PositiveZArea, WettedArea, RoughArea;
   su2double TotalPositiveXArea = 0.0, TotalPositiveYArea = 0.0, TotalPositiveZArea = 0.0, TotalWettedArea = 0.0, AxiFactor;
+  su2double TotalRoughArea = 0.0;
 
   bool axisymmetric = config->GetAxisymmetric();
 
@@ -9073,17 +9181,17 @@ void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {
   PositiveYArea = 0.0;
   PositiveZArea = 0.0;
   WettedArea = 0.0;
+  RoughArea = 0.0;
 
   for (iMarker = 0; iMarker < nMarker; iMarker++) {
     Boundary = config->GetMarker_All_KindBC(iMarker);
     Monitoring = config->GetMarker_All_Monitoring(iMarker);
-    
+    Rough = config->GetMarker_All_Rough(iMarker);
     if (((Boundary == EULER_WALL)              ||
          (Boundary == HEAT_FLUX)               ||
          (Boundary == ISOTHERMAL)              ||
          (Boundary == LOAD_BOUNDARY)           ||
          (Boundary == DISPLACEMENT_BOUNDARY)) && (Monitoring == YES))
-
       for (iVertex = 0; iVertex < nVertex[iMarker]; iVertex++) {
         iPoint = vertex[iMarker][iVertex]->GetNode();
 
@@ -9099,7 +9207,9 @@ void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {
           if (Normal[0] < 0) PositiveXArea -= Normal[0];
           if (Normal[1] < 0) PositiveYArea -= Normal[1];
           if ((nDim == 3) && (Normal[2] < 0)) PositiveZArea -= Normal[2];
-
+          
+          if ((nDim == 2) && (Rough == YES)) RoughArea += AxiFactor * sqrt (Normal[0]*Normal[0] + Normal[1]*Normal[1]);
+          if ((nDim == 3) && (Rough == YES)) RoughArea += sqrt (Normal[0]*Normal[0] + Normal[1]*Normal[1] + Normal[2]*Normal[2]);
         }
       }
   }
@@ -9109,11 +9219,13 @@ void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {
   SU2_MPI::Allreduce(&PositiveYArea, &TotalPositiveYArea, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   SU2_MPI::Allreduce(&PositiveZArea, &TotalPositiveZArea, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   SU2_MPI::Allreduce(&WettedArea, &TotalWettedArea, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  SU2_MPI::Allreduce(&RoughArea, &TotalRoughArea, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
   TotalPositiveXArea = PositiveXArea;
   TotalPositiveYArea = PositiveYArea;
   TotalPositiveZArea = PositiveZArea;
   TotalWettedArea    = WettedArea;
+  TotalRoughArea = RoughArea;
 #endif
     
   if (config->GetRefAreaCoeff() == 0.0) {
@@ -9137,6 +9249,10 @@ void CPhysicalGeometry::SetPositive_ZArea(CConfig *config) {
 
     if (nDim == 3) { cout << " z-plane = "<< TotalPositiveZArea;
     if (config->GetSystemMeasurements() == SI) cout <<" m^2." << endl; else cout <<" ft^2."<< endl; }
+
+  	cout << "Rough wetted area = "<< TotalRoughArea;
+    if ((nDim == 3) || (axisymmetric)) { if (config->GetSystemMeasurements() == SI) cout <<" m^2." << endl; else cout <<" ft^2." << endl; }
+    else { if (config->GetSystemMeasurements() == SI) cout <<" m." << endl; else cout <<" ft." << endl; }
 
   }
   
