@@ -1078,7 +1078,7 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
   su2double tu , nu_cr, nu_t, nu_BC, chi_1, chi_2, gamma_BC, term1, term2, term_exponential;
 //  Rough Wall Model variables
   /*--- not needed anymore  ---*/
-  su2double ks;
+  //su2double ks;
 
   if (incompressible) {
     Density_i = V_i[nDim+1];
@@ -1099,8 +1099,8 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
   vmag = 0.0;
   tu   = config->GetTurbulenceIntensity_FreeStream();
   rey  = config->GetReynolds();
-  /*--- not needed variable according to zone ---*/
-  // ks = config->GetRugosity_Wall(); 
+  /*--- not needed variable according to zone use ks_i ---*/
+  //ks = config->GetRugosity_Wall(); 
   if (nDim==2) {
     vmag = sqrt(V_i[1]*V_i[1]+V_i[2]*V_i[2]);
   }
@@ -1117,7 +1117,7 @@ void CSourcePieceWise_TurbSA_Rug::ComputeResidual(su2double *val_residual, su2do
   if (rotating_frame) { Omega += 2.0*min(0.0, StrainMag_i-Omega); }
 
   /*--- Rough wall distance correction ---*/
-
+  // use ks_i instead of ks for partial roughness implementation
   dist_new = dist_i + 0.03*ks_i;
   
   if (dist_new > 1e-10) {

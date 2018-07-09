@@ -8998,8 +8998,8 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
 
   unsigned long nVertex_SolidWall = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
-    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) 
+    if(((config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)) 
        &&
        !(config->GetMarker_All_Rough(iMarker) ) 
        ) {
@@ -9018,9 +9018,11 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
 
   unsigned long ii = 0, jj = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
-    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)  &&
-       !(config->GetMarker_All_Rough(iMarker) ) ) {
+    if(((config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+       (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL))  
+       &&
+       !(config->GetMarker_All_Rough(iMarker) ) 
+       ) {
       for(unsigned long iVertex=0; iVertex<GetnVertex(iMarker); ++iVertex) {
         unsigned long iPoint = vertex[iMarker][iVertex]->GetNode();
         PointIDs[jj++] = iPoint;
@@ -9071,8 +9073,8 @@ void CPhysicalGeometry::SetRough_Zone(CConfig *config) {
 
   unsigned long nVertex_SolidWall = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
-    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) &&
+    if(((config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)) &&
         (config->GetMarker_All_Rough(iMarker) ) ) {
       nVertex_SolidWall += GetnVertex(iMarker);
     }
@@ -9088,8 +9090,8 @@ void CPhysicalGeometry::SetRough_Zone(CConfig *config) {
 
   unsigned long ii = 0, jj = 0;
   for(unsigned short iMarker=0; iMarker<config->GetnMarker_All(); ++iMarker) {
-    if( (config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
-        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL) &&
+    if(((config->GetMarker_All_KindBC(iMarker) == HEAT_FLUX)  ||
+        (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)) &&
         (config->GetMarker_All_Rough(iMarker) ) ) {
       for(unsigned long iVertex=0; iVertex<GetnVertex(iMarker); ++iVertex) {
         unsigned long iPoint = vertex[iMarker][iVertex]->GetNode();

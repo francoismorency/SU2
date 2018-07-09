@@ -1603,13 +1603,16 @@ void CTurbSASolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_conta
     /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     
     if (geometry->node[iPoint]->GetDomain()) {
- 
+      /*--- old version constant rugosity ---*/
+      // ks = config->GetRugosity_Wall();
+      ks = geometry->node[iPoint]->GetRough();
       /*--- Special BC if rough wall and SA rug: Newman ---*/
-      if ((rug_spalart_allmaras) && (config->GetMarker_All_Rough(val_marker))) {
-
+      if ((rug_spalart_allmaras) 
+      && (ks > 1e-10) 
+      ){
         /*--- Get nutilde value at the wall and roughness from config ---*/
         nu_hat = node[iPoint]->GetSolution();
-        ks = config->GetRugosity_Wall();
+
         dist_new = 0.03*ks;
       
         /*--- Compute dual-grid area ---*/
@@ -1628,8 +1631,7 @@ void CTurbSASolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_conta
         nu  = mu/rho;
 
         /*--- Compute the viscous residuals due to the prescribed flux ---*/
-        /*--- d(nuhat)/dn = nu_hat/d
-        /*--- FM not sure I should multiply by Area ---*/
+        /*--- d(nuhat)/dn = nu_hat/d ---*/
         su2double sigma = 2./3.;
         for (iVar = 0; iVar < nVar; iVar++) {
           Residual[iVar] =  Area/sigma*(nu+nu_hat[0])*nu_hat[0]/dist_new;
