@@ -247,6 +247,7 @@ CEulerVariable::CEulerVariable(su2double *val_solution, unsigned short val_nDim,
  
     /*--- Allocate and initialize the primitive variables and gradients ---*/
   nPrimVar = nDim+9; nPrimVarGrad = nDim+4;
+     /*--- FM add 10 to nDim instead of 9 for dPrT ---*/ 
   if (viscous) { nSecondaryVar = 8; nSecondaryVarGrad = 2; }
   else { nSecondaryVar = 2; nSecondaryVarGrad = 2; }
 

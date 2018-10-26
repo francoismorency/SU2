@@ -129,6 +129,9 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   turb_ke_i = 0.0;
   turb_ke_j = 0.0;
   
+  deltaPrT_i = 0.0;
+  deltaPrT_j = 0.0;
+  
   Vector = new su2double[nDim];
   
   l = new su2double [nDim];
@@ -1561,11 +1564,13 @@ void CNumerics::GetAdjViscousFlux_Jac(su2double Pressure_i, su2double Pressure_j
 }
 
 void CNumerics::GetViscousFlux(su2double *val_primvar, su2double **val_gradprimvar,
-    su2double val_laminar_viscosity, su2double val_eddy_viscosity, su2double val_mach_inf) {
+    su2double val_laminar_viscosity, su2double val_eddy_viscosity, su2double val_mach_inf,
+    su2double val_deltaPrT) {
 
   su2double total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   su2double Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  su2double heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam + val_eddy_viscosity/Prandtl_Turb);
+  su2double effective_Prandtl_Turb = Prandtl_Turb + val_deltaPrT;
+  su2double heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam + val_eddy_viscosity/effective_Prandtl_Turb);
 
   su2double div_vel = 0.0;
   for (unsigned short iDim = 0 ; iDim < nDim; iDim++)
@@ -1623,16 +1628,20 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                   su2double **val_gradprimvar, su2double val_turb_ke,
                   su2double *val_normal,
                   su2double val_laminar_viscosity,
-                  su2double val_eddy_viscosity) {
+                  su2double val_eddy_viscosity,
+                  su2double val_deltaPrT) {
 
 
   unsigned short iVar, iDim, jDim;
   su2double total_viscosity, heat_flux_factor, div_vel, Cp, Density;
+  su2double effective_Prandtl_Turb;
 
   Density = val_primvar[nDim+2];
   total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
   Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-  heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam + val_eddy_viscosity/Prandtl_Turb);
+  effective_Prandtl_Turb = val_deltaPrT + Prandtl_Turb;
+  heat_flux_factor = Cp * (val_laminar_viscosity/Prandtl_Lam + 
+  						val_eddy_viscosity/effective_Prandtl_Turb);
 
   div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)
@@ -1687,14 +1696,16 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
                                    su2double val_laminar_viscosity,
                                    su2double val_eddy_viscosity,
                                    su2double val_thermal_conductivity,
-                                   su2double val_heat_capacity_cp) {
+                                   su2double val_heat_capacity_cp,
+                                   su2double val_deltaPrT ) {
 
   unsigned short iVar, iDim, jDim;
-  su2double total_viscosity, heat_flux_factor, div_vel, Density;
+  su2double total_viscosity, heat_flux_factor, div_vel, Density, effective_Prandtl_Turb;
   Density = val_primvar[nDim+2];
 
   total_viscosity = val_laminar_viscosity + val_eddy_viscosity;
-  heat_flux_factor = val_thermal_conductivity + val_heat_capacity_cp*val_eddy_viscosity/Prandtl_Turb;
+  effective_Prandtl_Turb = val_deltaPrT + Prandtl_Turb;
+  heat_flux_factor = val_thermal_conductivity + val_heat_capacity_cp*val_eddy_viscosity/effective_Prandtl_Turb;
 
   div_vel = 0.0;
   for (iDim = 0 ; iDim < nDim; iDim++)

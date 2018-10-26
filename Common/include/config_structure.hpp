@@ -671,7 +671,8 @@ private:
   Turb2LamViscRatio_FreeStream,          /*!< \brief Ratio of turbulent to laminar viscosity. */
   NuFactor_FreeStream,  /*!< \brief Ratio of turbulent to laminar viscosity. */
   Rugosity_Wall, /* !< \brief Constant rugosity at walls for SA_Rough model */
-  Conductivity_Rough, /* !< \brief Constant for roughness thermal conductivity  for SA_Rough model */
+  Roughness_Height, /* !< \brief Constant roughness height at wall for SA_Rough model */
+  Surface_Ratio_Corrected, /* < \brief Corrected wetted surface ratio at wall for SA_Rough model */
   NuFactor_Engine,  /*!< \brief Ratio of turbulent to laminar viscosity at the engine. */
   SecondaryFlow_ActDisk,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
   Initial_BCThrust,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
@@ -1637,10 +1638,16 @@ public:
   su2double GetRugosity_Wall(void);
  
  /*!
-   * \brief Get the value of the roughness thermal conductivity  at wall.
-   * \return roughness thermal conductivity.
+   * \brief Get the value of the roughness height for thermal conductivity  at wall.
+   * \return roughness height.
    */
-  su2double GetConductivity_Rough(void); 
+  su2double GetRoughness_Height(void); 
+  
+ /*!
+   * \brief Get the value of the corrected wetted surface ratio for roughness at wall.
+   * \return corrected wetted surface ratio.
+   */
+  su2double GetSurface_Ratio_Corrected(void);   
   
   /*!
    * \brief Get the value of the non-dimensionalized actuator disk turbulence intensity.

@@ -116,6 +116,8 @@ public:
   dist_j;      /*!< \brief Distance of point j to the nearest wall. */
   su2double ks_i, /*!< \equivalent sand grain roughness of the nearest wall of point i. */
   ks_j; /*!< \equivalent sand grain roughness of the nearest wall of point j. */
+  su2double deltaPrT_i, /*!< Value of of the delta Prandtl turbulent at point i. */
+  deltaPrT_j; /*!< Value of of the delta Prandtl turbulent at point j. */
   su2double Temp_i,  /*!< \brief Temperature at point i. */
   Temp_j;      /*!< \brief Temperature at point j. */
   su2double *Temp_tr_i, /*!< \brief Temperature transl-rot at point i. */
@@ -519,17 +521,25 @@ public:
   
   /*!
    * \brief Set the value of the distance from the nearest wall.
-   * \param[in] val_dist_i - Value of of the distance from point i to the nearest wall.
-   * \param[in] val_dist_j - Value of of the distance from point j to the nearest wall.
+   * \param[in] val_dist_i - Value of the distance from point i to the nearest wall.
+   * \param[in] val_dist_j - Value of the distance from point j to the nearest wall.
    */
   void SetDistance(su2double val_dist_i, su2double val_dist_j);
   
   /*!
    * \brief Set the value of the equivalent sand grain roughness from the nearest wall.
-   * \param[in] val_rough_i - Value of of the equivalent sand grain roughness at point i from the nearest wall.
-   * \param[in] val_rough_j - Value of of the equivalent sand grain roughness at point i from the nearest wall.
+   * \param[in] val_rough_i - Value of the equivalent sand grain roughness at point i from the nearest wall.
+   * \param[in] val_rough_j - Value of the equivalent sand grain roughness at point i from the nearest wall.
    */
   void SetRugosity(su2double val_rough_i, su2double val_rough_j);
+  
+   /*!
+   * \brief Set the value of the increase in turbulent Prandtl caused by roughness.
+   * \param[in] deltaPrT_i - Value of of the delta Prandtl turbulent at point i.
+   * \param[in] deltaPrT_j - Value of of the delta Prandtl turbulent at point j.
+   */
+  void SetdeltaPrT(su2double deltaPrT_i, su2double deltaPrT_j);
+  
   
   /*!
    * \brief Set coordinates of the points.
@@ -753,10 +763,11 @@ public:
    * \param[in] val_laminar_viscosity - Value of the laminar viscosity.
    * \param[in] val_eddy_viscosity - Value of the eddy viscosity.
    * \param[in] val_mach_inf - Value of the Mach number at the infinity.
+   * \param[in] val_deltaPrT - delta Prandtl turbulent for rugosity.
    */
   void GetViscousFlux(su2double *val_primvar, su2double **val_gradprimvar,
                       su2double val_laminar_viscosity, su2double val_eddy_viscosity,
-                      su2double val_mach_inf);
+                      su2double val_mach_inf, su2double val_deltaPrT);
   
   /*!
    * \brief Compute the projected inviscid flux vector.
@@ -794,12 +805,14 @@ public:
    * \param[in] val_eddy_viscosity - Eddy viscosity.
    * \param[in] val_thermal_conductivity - Thermal Conductivity.
    * \param[in] val_eddy_conductivity - Eddy Conductivity.
+   * \param[in] val_deltaPrT - delta Prandtl turbulent for rugosity.
    */
   
   void GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
                           su2double val_turb_ke, su2double *val_normal,
                           su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity);
+                          su2double val_eddy_viscosity,
+                          su2double val_deltaPrT);
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
    * \param[in] val_primvar - Primitive variables.
@@ -810,6 +823,7 @@ public:
    * \param[in] val_eddy_viscosity - Eddy viscosity.
    * \param[in] val_thermal_conductivity - Thermal Conductivity.
    * \param[in] val_heat_capacity_cp - Heat Capacity at constant pressure.
+   * \param[in] val_deltaPrT - delta Prandtl turbulent for rugosity.
    */
   
   void GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
@@ -817,7 +831,8 @@ public:
                           su2double val_laminar_viscosity,
                           su2double val_eddy_viscosity,
                           su2double val_thermal_conductivity,
-                          su2double val_heat_capacity_cp);
+                          su2double val_heat_capacity_cp,
+                          su2double val_deltaPrT);
     
   /*
    * \brief Compute the projection of the viscous fluxes into a direction (artificial compresibility method).
@@ -2725,7 +2740,8 @@ private:
   Mean_Laminar_Viscosity,                /*!< \brief Mean value of the viscosity. */
   Mean_Eddy_Viscosity,                   /*!< \brief Mean value of the eddy viscosity. */
   Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij;            /*!< \brief Length of the edge and face. */
+  dist_ij,            /*!< \brief Length of the edge and face. */
+  Mean_deltaPrT;  /*!< \brief Mean value delta PrT due to roughness. */
   bool implicit; /*!< \brief Implicit calculus. */
   
 public:
@@ -2773,7 +2789,8 @@ private:
   Mean_Thermal_Conductivity,             /*!< \brief Mean value of the thermal conductivity. */
   Mean_Cp,                               /*!< \brief Mean value of the Cp. */
   Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij;            /*!< \brief Length of the edge and face. */
+  dist_ij,            /*!< \brief Length of the edge and face. */
+  Mean_deltaPrT;  /*!< \brief Mean value delta PrT due to roughness. */
   bool implicit; /*!< \brief Implicit calculus. */
   
 public:
@@ -3163,7 +3180,8 @@ private:
   Mean_Laminar_Viscosity,      /*!< \brief Mean value of the laminar viscosity. */
   Mean_Eddy_Viscosity,         /*!< \brief Mean value of the eddy viscosity. */
   Mean_turb_ke,         /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij_2;           /*!< \brief Length of the edge and face. */
+  dist_ij_2,           /*!< \brief Length of the edge and face. */
+  Mean_deltaPrT;  /*!< \brief Mean value delta PrT due to roughness. */
   bool implicit;      /*!< \brief Implicit calculus. */
   bool limiter;      /*!< \brief Viscous limiter. */
   
@@ -3213,7 +3231,8 @@ private:
   Mean_Thermal_Conductivity,   /*!< \brief Mean value of the thermal conductivity. */
   Mean_Cp,                     /*!< \brief Mean value of the specific heat. */
   Mean_turb_ke,         /*!< \brief Mean value of the turbulent kinetic energy. */
-  dist_ij_2;           /*!< \brief Length of the edge and face. */
+  dist_ij_2,           /*!< \brief Length of the edge and face. */
+  Mean_deltaPrT;  /*!< \brief Mean value delta PrT due to roughness. */
   bool implicit;      /*!< \brief Implicit calculus. */
   
 public:

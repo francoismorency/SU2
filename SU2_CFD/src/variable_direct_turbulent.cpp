@@ -78,7 +78,34 @@ su2double CTurbVariable::GetmuT() { return muT; }
 
 void CTurbVariable::SetmuT(su2double val_muT) { muT = val_muT; }
 
+su2double CTurbVariable::GetdeltaPrT() { return deltaPrT; }
+
+void CTurbVariable::SetdeltaPrT(su2double val_deltaPrT) { deltaPrT = val_deltaPrT; }
+
 CTurbSAVariable::CTurbSAVariable(void) : CTurbVariable() { }
+
+CTurbSAVariable::CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, su2double val_deltaPrT, unsigned short val_nDim, unsigned short val_nvar, CConfig *config)
+: CTurbVariable(val_nDim, val_nvar, config) {
+  
+  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  
+  /*--- Initialization of S-A variables ---*/
+  Solution[0] = val_nu_tilde;    Solution_Old[0] = val_nu_tilde;
+  
+  /*--- Initialization of the eddy viscosity ---*/
+  muT = val_muT;
+  
+  /*--- Initialization of the delta Prandtl turbulent for rough wall---*/
+  deltaPrT = val_deltaPrT;
+  
+  /*--- Allocate and initialize solution for the dual time strategy ---*/
+  if (dual_time) {
+    Solution_time_n[0]  = val_nu_tilde;
+    Solution_time_n1[0] = val_nu_tilde;
+  }
+
+}
 
 CTurbSAVariable::CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, unsigned short val_nDim, unsigned short val_nvar, CConfig *config)
 : CTurbVariable(val_nDim, val_nvar, config) {

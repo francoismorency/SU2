@@ -701,7 +701,7 @@ void CMultiGridIntegration::NonDimensional_Parameters(CGeometry **geometry, CSol
       
       solver_container[FinestMesh][FLOW_SOL]->Pressure_Forces(geometry[FinestMesh], config);
       solver_container[FinestMesh][FLOW_SOL]->Momentum_Forces(geometry[FinestMesh], config);
-      solver_container[FinestMesh][FLOW_SOL]->Friction_Forces(geometry[FinestMesh], config);
+      solver_container[FinestMesh][FLOW_SOL]->Friction_Forces(geometry[FinestMesh], solver_container[FinestMesh], config);
       
       /*--- Evaluate convergence monitor ---*/
       

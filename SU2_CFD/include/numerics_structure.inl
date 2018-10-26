@@ -245,6 +245,11 @@ inline void CNumerics::SetDistance(su2double val_dist_i, su2double val_dist_j) {
   dist_j = val_dist_j;
 }
 
+inline void CNumerics::SetdeltaPrT(su2double val_deltaPrT_i, su2double val_deltaPrT_j) {
+  deltaPrT_i = val_deltaPrT_i;
+  deltaPrT_j = val_deltaPrT_j;
+}
+
 inline void CNumerics::SetAdjointVar(su2double *val_psi_i, su2double *val_psi_j) {
   Psi_i = val_psi_i;
   Psi_j = val_psi_j;

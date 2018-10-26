@@ -1125,6 +1125,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
                     (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
   bool time_stepping = config->GetUnsteady_Simulation() == TIME_STEPPING;
+  bool rug_spalart_allmaras = (config->GetKind_Turb_Model() == SA_ROUGH);
 
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -1272,10 +1273,13 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
   fv1 = Ji_3/(Ji_3+cv1_3);
   muT_Inf = Density_Inf*fv1*nu_tilde_Inf;
   
+  /*--- Delta PrT at infinity caused by roughness ---*/
+  su2double deltaPrT_Inf = 0;
+  
   /*--- Restart the solution from file information ---*/
   if (!restart || (iMesh != MESH_0)) {
     for (iPoint = 0; iPoint < nPoint; iPoint++)
-      node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, nDim, nVar, config);
+      node[iPoint] = new CTurbSAVariable(nu_tilde_Inf, muT_Inf, deltaPrT_Inf, nDim, nVar, config);
   }
   else {
     
@@ -1283,6 +1287,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
     ifstream restart_file;
     string filename = config->GetSolution_FlowFileName();
     su2double Density, StaticEnergy, Laminar_Viscosity, nu, nu_hat, muT = 0.0, U[5];
+    su2double deltaPrT = 0.0;
     int Unst_RestartIter;
 
     /*--- Modify file name for multizone problems ---*/
@@ -1370,7 +1375,12 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
           Ji_3   = Ji*Ji*Ji;
           fv1    = Ji_3/(Ji_3+cv1_3);
           muT    = Density*fv1*nu_hat;
-          
+          deltaPrT = 0.0;
+          /*--- Compute increases in Prandtl turbulent caused by roughness ---*/
+          if (rug_spalart_allmaras) {
+            /*--- for now set 0 on restart, must be improved in future ---*/
+            deltaPrT = 0.0;
+            }
         }
         if (incompressible) {
           if (nDim == 2) point_line >> index >> dull_val >> dull_val >> dull_val >> dull_val >> dull_val >> Solution[0];
@@ -1379,7 +1389,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
         }
         
         /*--- Instantiate the solution at this node, note that the eddy viscosity should be recomputed ---*/
-        node[iPoint_Local] = new CTurbSAVariable(Solution[0], muT, nDim, nVar, config);
+        node[iPoint_Local] = new CTurbSAVariable(Solution[0], muT, deltaPrT, nDim, nVar, config);
         iPoint_Global_Local++;
       }
 
@@ -1412,7 +1422,7 @@ CTurbSASolver::CTurbSASolver(CGeometry *geometry, CConfig *config, unsigned shor
      at any halo/periodic nodes. The initial solution can be arbitrary,
      because a send/recv is performed immediately in the solver. ---*/
     for (iPoint = nPointDomain; iPoint < nPoint; iPoint++) {
-      node[iPoint] = new CTurbSAVariable(Solution[0], muT_Inf, nDim, nVar, config);
+      node[iPoint] = new CTurbSAVariable(Solution[0], muT_Inf, deltaPrT_Inf, nDim, nVar, config);
     }
     
     /*--- Close the restart file ---*/
@@ -1462,13 +1472,20 @@ void CTurbSASolver::Preprocessing(CGeometry *geometry, CSolver **solver_containe
 void CTurbSASolver::Postprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh) {
   
   su2double rho = 0.0, mu = 0.0, nu, *nu_hat, muT, Ji, Ji_3, fv1;
-  su2double cv1_3 = 7.1*7.1*7.1;
+  su2double cv1_3 = 7.1*7.1*7.1, kappa = 0.41;
+  su2double G=0.0,F=0.0,deltaPrT = 0.0,ks,ratio,utau,ksplus,delta_uplus,dist;
   unsigned long iPoint;
   
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
   bool neg_spalart_allmaras = (config->GetKind_Turb_Model() == SA_NEG);
- 
+  bool rug_spalart_allmaras = (config->GetKind_Turb_Model() == SA_ROUGH);
+  su2double roughness_height = (config->GetRoughness_Height());
+  su2double Scorr = (config->GetSurface_Ratio_Corrected());
+  
+  /*--- Constant for delta Prandtl turbulent for Aupoix model ---*/ 
+  su2double A = (0.0155-0.0035*Scorr)*(1.0-exp(-12.*(Scorr-1.0)));
+  su2double B = -0.08+0.25*exp(-10*(Scorr-1.0));
   
   /*--- Compute eddy viscosity ---*/
   
@@ -1492,9 +1509,34 @@ void CTurbSASolver::Postprocessing(CGeometry *geometry, CSolver **solver_contain
     
     muT = rho*fv1*nu_hat[0];
     
+    /*--- Compute roughness effect increase on turbulent Prandtl number ---*/
+    if (rug_spalart_allmaras) {
+    	ks = geometry->node[iPoint]->GetRough();
+        if ((ks > 1e-10) && (roughness_height > 1e-12))  { 
+        	dist = geometry->node[iPoint]->GetWall_Distance();
+        	ratio = dist/(roughness_height);
+        	/*--- Variable F and G ---*/
+        	if (ratio < 5.0 ) {
+        		G=exp(-ratio);
+    		/*--- approximate nu_hat=kappa*utau*d ---*/
+        		utau = nu_hat[0]/(sqrt(kappa)*(dist+0.03*ks));
+        		ksplus = ks*utau/nu;
+        		delta_uplus = 1./sqrt(kappa)*log(1.0+ksplus/exp(1.3325));
+        		F = A*pow(delta_uplus,2)+B*delta_uplus;
+        		/*--- cout << "F " << F << " and G " << G << "." << endl; ---*/
+        		deltaPrT = F*G;
+        		/*--- cout << "deltaPrT " << deltaPrT << "." << endl; ---*/	 
+        		} else {      	
+        		deltaPrT=0.0;
+        		}
+    		node[iPoint]->SetdeltaPrT(deltaPrT); 
+    		}
+    	}
+    			
     if (neg_spalart_allmaras && (muT < 0.0)) muT = 0.0;
     
     node[iPoint]->SetmuT(muT);
+    
     
   }
   
@@ -1705,8 +1747,7 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
       nu  = mu/rho;
 
       /*--- Compute the viscous residuals due to the prescribed flux ---*/
-      /*--- d(nuhat)/dn = nu_hat/d
-      /*--- FM not sure I should multiply by Area ---*/
+      /*--- d(nuhat)/dn = nu_hat/d ---*/
       su2double sigma = 2./3.;
       for (iVar = 0; iVar < nVar; iVar++) {
        // if (Rough) {

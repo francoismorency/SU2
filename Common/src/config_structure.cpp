@@ -650,7 +650,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION:  */
   addDoubleOption("RUGOSITY_WALL", Rugosity_Wall, 0.0);
   /* DESCRIPTION:  */
-  addDoubleOption("CONDUCTIVITY_ROUGH",Conductivity_Rough,0.0);
+  addDoubleOption("ROUGHNESS_HEIGHT",Roughness_Height,1.0e-12);
+  /* DESCRIPTION:  */
+  addDoubleOption("SURFACE_RATIO_CORRECTED",Surface_Ratio_Corrected,1.0);
   /* DESCRIPTION:  */
   addDoubleOption("ACTDISK_SECONDARY_FLOW", SecondaryFlow_ActDisk, 0.0);
   /* DESCRIPTION:  */
@@ -3705,7 +3707,12 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA:     cout << "Spalart Allmaras" << endl; break;
           case SA_NEG: cout << "Negative Spalart Allmaras" << endl; break;
           case SST:    cout << "Menter's SST"     << endl; break;
-          case SA_ROUGH:    cout << "Rough wall Spalart Allmaras ks: " << Rugosity_Wall << " Conductivity roughness:" << Conductivity_Rough << "." << endl; break;
+          case SA_ROUGH:    
+              cout << "Rough wall Spalart Allmaras"  << endl;
+              cout << "equivalent sand grain roughness: " << Rugosity_Wall << "." << endl;
+              cout << "roughness height: " << Roughness_Height << "." << endl;
+              cout << "corrected wetted surface ratio: " << Surface_Ratio_Corrected << "." << endl; 
+              break;
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;

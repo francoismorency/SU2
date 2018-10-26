@@ -1667,6 +1667,19 @@ public:
   virtual void SetmuT(su2double val_muT);
   
   /*!
+   * \brief Get the value of the delta Prandtl turbulent due to roughness.
+   * \return the value of the delta Prandtl turbulent due to roughness.
+   */
+  virtual su2double GetdeltaPrT(void);
+  
+  /*!
+   * \brief Set the value of the delta Prandtl turbulent due to roughness.
+   * \param[in] val_deltaPrT
+   */
+  virtual void SetdeltaPrT(su2double val_deltaPrT);
+   
+  
+  /*!
    * \brief Add a value to the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] val_max_lambda - Value of the maximum eigenvalue for the inviscid terms of the PDE.
    * \param[in] iSpecies - Value of iSpecies to which the eigenvalue belongs
@@ -3554,6 +3567,7 @@ class CTurbVariable : public CVariable {
 protected:
   su2double muT;                /*!< \brief Eddy viscosity. */
   su2double *HB_Source;          /*!< \brief Harmonic Balance source term. */
+  su2double deltaPrT;            /*!< \brief Increase of Prandtl turbulent caused by rugosity. */
   
 public:
   /*!
@@ -3585,6 +3599,18 @@ public:
    * \param[in] val_muT - Value of the eddy viscosity.
    */
   void SetmuT(su2double val_muT);
+  
+    /*!
+   * \brief Get the value of the delta Prandtl turbulent due to roughness.
+   * \return the value of the delta Prandtl turbulent.
+   */
+  su2double GetdeltaPrT();
+  
+  /*!
+   * \brief Set the value of the delta Prandtl turbulent due to roughness.
+   * \param[in] val_deltaPrT - Value of the delta Prandtl turbulent.
+   */
+  void SetdeltaPrT(su2double val_deltaPrT);
 };
 
 /*!
@@ -3601,7 +3627,7 @@ public:
    * \brief Constructor of the class.
    */
   CTurbSAVariable(void);
-  
+
   /*!
    * \overload
    * \param[in] val_nu_tilde - Turbulent variable value (initialization value).
@@ -3611,6 +3637,19 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, unsigned short val_nDim, unsigned short val_nvar, CConfig *config);
+  
+  /*!
+   * \overload
+   * \param[in] val_nu_tilde - Turbulent variable value (initialization value).
+   * \param[in] val_muT  - The eddy viscosity
+   * \param[in] val_deltaPrT - The delta Prandtl turbulent number due to roughness
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nvar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CTurbSAVariable(su2double val_nu_tilde, su2double val_muT, su2double val_deltaPrT, unsigned short val_nDim, unsigned short val_nvar, CConfig *config);
+  
+  
   
   /*!
    * \brief Destructor of the class.

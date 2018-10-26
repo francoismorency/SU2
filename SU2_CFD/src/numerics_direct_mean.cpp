@@ -3401,6 +3401,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
   Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
+  Mean_deltaPrT = 0.5*(deltaPrT_i + deltaPrT_j);
   
   /*--- Mean gradient approximation ---*/
 
@@ -3412,7 +3413,7 @@ void CAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **val_Jac
   
   /*--- Get projected flux tensor ---*/
   
-  GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+  GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, Mean_deltaPrT);
 
   /*--- Update viscous residual ---*/
   
@@ -3510,6 +3511,7 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   Mean_turb_ke              = 0.5*(turb_ke_i + turb_ke_j);
   Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
   Mean_Cp                   = 0.5*(Cp_i + Cp_j);
+  Mean_deltaPrT             = 0.5*(deltaPrT_i + deltaPrT_j);
 
   /*--- Mean gradient approximation ---*/
   for (iVar = 0; iVar < nDim+1; iVar++) {
@@ -3520,7 +3522,7 @@ void CGeneralAvgGrad_Flow::ComputeResidual(su2double *val_residual, su2double **
   
   /*--- Get projected flux tensor ---*/
   GetViscousProjFlux( Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
-                  Mean_Thermal_Conductivity, Mean_Cp );
+                  Mean_Thermal_Conductivity, Mean_Cp, Mean_deltaPrT );
   
   /*--- Update viscous residual ---*/
   for (iVar = 0; iVar < nVar; iVar++)
@@ -3591,6 +3593,7 @@ void CAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2double 
   AD::SetPreaccIn(PrimVar_Lim_i, nDim+1);
   AD::SetPreaccIn(PrimVar_Lim_j, nDim+1);
   AD::SetPreaccIn(turb_ke_i); AD::SetPreaccIn(turb_ke_j);
+  AD::SetPreaccIn(deltaPrT_i); AD::SetPreaccIn(deltaPrT_j);
   AD::SetPreaccIn(Normal, nDim);
 
   /*--- Normalized normal vector ---*/
@@ -3627,6 +3630,7 @@ void CAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2double 
   Mean_Laminar_Viscosity = 0.5*(Laminar_Viscosity_i + Laminar_Viscosity_j);
   Mean_Eddy_Viscosity = 0.5*(Eddy_Viscosity_i + Eddy_Viscosity_j);
   Mean_turb_ke = 0.5*(turb_ke_i + turb_ke_j);
+  Mean_deltaPrT = 0.5*(deltaPrT_i + deltaPrT_j);
   
   /*--- Projection of the mean gradient in the direction of the edge ---*/
   
@@ -3657,7 +3661,8 @@ void CAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2double 
   
   /*--- Get projected flux tensor ---*/
   
-  GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity);
+  GetViscousProjFlux(Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, 
+                     Mean_Eddy_Viscosity, Mean_deltaPrT);
   
   /*--- Save residual value ---*/
   
@@ -3862,6 +3867,7 @@ void CGeneralAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2
   AD::SetPreaccIn(PrimVar_Grad_i, nDim+1, nDim);
   AD::SetPreaccIn(PrimVar_Grad_j, nDim+1, nDim);
   AD::SetPreaccIn(turb_ke_i); AD::SetPreaccIn(turb_ke_j);
+  AD::SetPreaccIn(deltaPrT_i); AD::SetPreaccIn(deltaPrT_j);
   AD::SetPreaccIn(Normal, nDim);
 
   /*--- Normalized normal vector ---*/
@@ -3907,6 +3913,7 @@ void CGeneralAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2
   Mean_turb_ke              = 0.5*(turb_ke_i + turb_ke_j);
   Mean_Thermal_Conductivity = 0.5*(Thermal_Conductivity_i + Thermal_Conductivity_j);
   Mean_Cp                   = 0.5*(Cp_i + Cp_j);
+  Mean_deltaPrT             = 0.5*(deltaPrT_i + deltaPrT_j);
   
   /*--- Projection of the mean gradient in the direction of the edge ---*/
   
@@ -3927,7 +3934,7 @@ void CGeneralAvgGradCorrected_Flow::ComputeResidual(su2double *val_residual, su2
   /*--- Get projected flux tensor ---*/
   
   GetViscousProjFlux( Mean_PrimVar, Mean_GradPrimVar, Mean_turb_ke, Normal, Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,
-                  Mean_Thermal_Conductivity, Mean_Cp );
+                  Mean_Thermal_Conductivity, Mean_Cp, Mean_deltaPrT );
   
   /*--- Save residual value ---*/
   

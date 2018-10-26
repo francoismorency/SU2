@@ -1408,9 +1408,10 @@ public:
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
    * \param[in] config - Definition of the particular problem.
    */
-  virtual void Friction_Forces(CGeometry *geometry, CConfig *config);
+  virtual void Friction_Forces(CGeometry *geometry, CSolver **solver_container, CConfig *config);
   
   /*!
    * \brief A virtual member.
@@ -7582,9 +7583,10 @@ public:
   /*!
    * \brief Compute the viscous forces and all the addimensional coefficients.
    * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
    * \param[in] config - Definition of the particular problem.
    */
-  void Friction_Forces(CGeometry *geometry, CConfig *config);
+  void Friction_Forces(CGeometry *geometry, CSolver **solver_container, CConfig *config);
   
   /*!
    * \brief Get the total heat flux.
@@ -7970,9 +7972,10 @@ public:
   /*!
    * \brief Compute the viscous forces and all the addimensional coefficients.
    * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
    * \param[in] config - Definition of the particular problem.
    */
-  void Friction_Forces(CGeometry *geometry, CConfig *config);
+  void Friction_Forces(CGeometry *geometry, CSolver **solver_container, CConfig *config);
   
   /*!
    * \brief Get the non dimensional lift coefficient (viscous contribution).

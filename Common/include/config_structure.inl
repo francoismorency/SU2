@@ -435,7 +435,9 @@ inline su2double CConfig::GetTurb2LamViscRatio_FreeStream(void) { return Turb2La
 
 inline su2double CConfig::GetRugosity_Wall(void) { return Rugosity_Wall; }
 
-inline su2double CConfig::GetConductivity_Rough(void) { return Conductivity_Rough; }
+inline su2double CConfig::GetRoughness_Height(void) { return Roughness_Height; }
+
+inline su2double CConfig::GetSurface_Ratio_Corrected(void) { return Surface_Ratio_Corrected; }
 
 inline su2double* CConfig::GetMassFrac_FreeStream(void) { return MassFrac_FreeStream; }
 

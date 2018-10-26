@@ -14429,6 +14429,7 @@ void CEulerSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfig 
       if (grid_movement) {
         
         /*--- First, remove any variables for the turbulence model that
+         appear in the restart file before the grid velocities. ---*/
         
         if (turb_model == SA || turb_model == SA_NEG || turb_model == SA_ROUGH) {
           point_line >> dull_val;
@@ -15723,7 +15724,7 @@ void CNSSolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, C
 unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CConfig *config, bool Output) {
   
   unsigned long iPoint, ErrorCounter = 0;
-  su2double eddy_visc = 0.0, turb_ke = 0.0;
+  su2double eddy_visc = 0.0, turb_ke = 0.0, deltaPrT = 0.0; 
   unsigned short turb_model = config->GetKind_Turb_Model();
   bool RightSol = true;
   
@@ -15761,7 +15762,8 @@ unsigned long CNSSolver::SetPrimitive_Variables(CSolver **solver_container, CCon
 void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CConfig *config, unsigned short iMesh, unsigned long Iteration) {
   
   su2double *Normal, Area, Vol, Mean_SoundSpeed = 0.0, Mean_ProjVel = 0.0, Lambda, Local_Delta_Time, Local_Delta_Time_Visc,
-  Global_Delta_Time = 1E6, Mean_LaminarVisc = 0.0, Mean_EddyVisc = 0.0, Mean_Density = 0.0, Lambda_1, Lambda_2, K_v = 0.25, Global_Delta_UnstTimeND;
+  Global_Delta_Time = 1E6, Mean_LaminarVisc = 0.0, Mean_EddyVisc = 0.0, Mean_Density = 0.0, Mean_deltaPrT = 0.0,
+  Lambda_1, Lambda_2, K_v = 0.25, Global_Delta_UnstTimeND;
   unsigned long iEdge, iVertex, iPoint = 0, jPoint = 0;
   unsigned short iDim, iMarker;
   su2double ProjVel, ProjVel_i, ProjVel_j;
@@ -15821,10 +15823,13 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
     Mean_LaminarVisc = 0.5*(node[iPoint]->GetLaminarViscosity() + node[jPoint]->GetLaminarViscosity());
     Mean_EddyVisc    = 0.5*(node[iPoint]->GetEddyViscosity() + node[jPoint]->GetEddyViscosity());
     Mean_Density     = 0.5*(node[iPoint]->GetSolution(0) + node[jPoint]->GetSolution(0));
+    Mean_deltaPrT    = 0.5*(solver_container[TURB_SOL]->node[iPoint]->GetdeltaPrT() 
+    + solver_container[TURB_SOL]->node[jPoint]->GetdeltaPrT());
     
     Lambda_1 = (4.0/3.0)*(Mean_LaminarVisc + Mean_EddyVisc);
+    su2double effective_Prandtl_Turb = Prandtl_Turb + Mean_deltaPrT;
     //TODO (REAL_GAS) removing Gamma it cannot work with FLUIDPROP
-    Lambda_2 = (1.0 + (Prandtl_Lam/Prandtl_Turb)*(Mean_EddyVisc/Mean_LaminarVisc))*(Gamma*Mean_LaminarVisc/Prandtl_Lam);
+    Lambda_2 = (1.0 + (Prandtl_Lam/effective_Prandtl_Turb)*(Mean_EddyVisc/Mean_LaminarVisc))*(Gamma*Mean_LaminarVisc/Prandtl_Lam);
     Lambda = (Lambda_1 + Lambda_2)*Area*Area/Mean_Density;
     
     if (geometry->node[iPoint]->GetDomain()) node[iPoint]->AddMax_Lambda_Visc(Lambda);
@@ -15871,9 +15876,11 @@ void CNSSolver::SetTime_Step(CGeometry *geometry, CSolver **solver_container, CC
       Mean_LaminarVisc = node[iPoint]->GetLaminarViscosity();
       Mean_EddyVisc    = node[iPoint]->GetEddyViscosity();
       Mean_Density     = node[iPoint]->GetSolution(0);
+      Mean_deltaPrT    = solver_container[TURB_SOL]->node[iPoint]->GetdeltaPrT();
       
+      su2double effective_Prandtl_Turb = Prandtl_Turb + Mean_deltaPrT;
       Lambda_1 = (4.0/3.0)*(Mean_LaminarVisc + Mean_EddyVisc);
-      Lambda_2 = (1.0 + (Prandtl_Lam/Prandtl_Turb)*(Mean_EddyVisc/Mean_LaminarVisc))*(Gamma*Mean_LaminarVisc/Prandtl_Lam);
+      Lambda_2 = (1.0 + (Prandtl_Lam/effective_Prandtl_Turb)*(Mean_EddyVisc/Mean_LaminarVisc))*(Gamma*Mean_LaminarVisc/Prandtl_Lam);
       Lambda = (Lambda_1 + Lambda_2)*Area*Area/Mean_Density;
       
       if (geometry->node[iPoint]->GetDomain()) node[iPoint]->AddMax_Lambda_Visc(Lambda);
@@ -16013,7 +16020,7 @@ void CNSSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_container
   
 }
 
-void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
+void CNSSolver::Friction_Forces(CGeometry *geometry, CSolver **solver_container, CConfig *config) {
   
   unsigned long iVertex, iPoint, iPointNormal;
   unsigned short Boundary, Monitoring, iMarker, iMarker_Monitoring, iDim, jDim;
@@ -16025,7 +16032,7 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
   Grad_Vel[3][3] = {{0.0, 0.0, 0.0},{0.0, 0.0, 0.0},{0.0, 0.0, 0.0}}, Grad_Temp[3] = {0.0, 0.0, 0.0},
   delta[3][3] = {{1.0, 0.0, 0.0},{0.0,1.0,0.0},{0.0,0.0,1.0}};
   su2double AxiFactor;
-  su2double Eddy_Viscosity = 0.0, Total_Viscosity = 0.0;
+  su2double Eddy_Viscosity = 0.0, Total_Viscosity = 0.0, Mean_deltaPrT = 0.0, effective_Prandtl_Turb;
 
 #ifdef HAVE_MPI
   su2double MyAllBound_CD_Visc, MyAllBound_CL_Visc, MyAllBound_CSF_Visc, MyAllBound_CMx_Visc, MyAllBound_CMy_Visc, MyAllBound_CMz_Visc, MyAllBound_CFx_Visc, MyAllBound_CFy_Visc, MyAllBound_CFz_Visc, MyAllBound_CT_Visc, MyAllBound_CQ_Visc, MyAllBound_HF_Visc, MyAllBound_MaxHF_Visc, *MySurface_CL_Visc = NULL, *MySurface_CD_Visc = NULL, *MySurface_CSF_Visc = NULL, *MySurface_CEff_Visc = NULL, *MySurface_CFx_Visc = NULL, *MySurface_CFy_Visc = NULL, *MySurface_CFz_Visc = NULL, *MySurface_CMx_Visc = NULL, *MySurface_CMy_Visc = NULL, *MySurface_CMz_Visc = NULL, *MySurface_HF_Visc = NULL, *MySurface_MaxHF_Visc;
@@ -16136,6 +16143,8 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
         /*--- if rough wall then eddy viscosity not zero at wall ---*/
         if (rug_spalart_allmaras) {
           Eddy_Viscosity = node[iPoint]->GetEddyViscosity();
+          Mean_deltaPrT = solver_container[TURB_SOL]->node[iPoint]->GetdeltaPrT();
+          /*--- cout << "delta PrT in solver" << Mean_deltaPrT << "." << endl; ---*/
         }
         Total_Viscosity = Viscosity + Eddy_Viscosity;
         
@@ -16193,7 +16202,8 @@ void CNSSolver::Friction_Forces(CGeometry *geometry, CConfig *config) {
           GradTemperature -= Grad_Temp[iDim]*UnitNormal[iDim];
 
         Cp = (Gamma / Gamma_Minus_One) * Gas_Constant;
-        thermal_conductivity = Cp * ( Viscosity/Prandtl_Lam + Eddy_Viscosity/Prandtl_Turb );
+        effective_Prandtl_Turb = Prandtl_Turb + Mean_deltaPrT;
+        thermal_conductivity = Cp * ( Viscosity/Prandtl_Lam + Eddy_Viscosity/effective_Prandtl_Turb );
         HeatFlux[iMarker][iVertex] = -thermal_conductivity*GradTemperature;
         HF_Visc[iMarker] += HeatFlux[iMarker][iVertex]*Area;
         MaxHF_Visc[iMarker] += pow(HeatFlux[iMarker][iVertex], MaxNorm);
@@ -16692,6 +16702,7 @@ void CNSSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_contain
   su2double total_viscosity, div_vel, tau_vel[3] = {0.0,0.0,0.0}, UnitNormal[3] = {0.0,0.0,0.0};
   su2double laminar_viscosity, eddy_viscosity, Grad_Vel[3][3] = {{1.0, 0.0, 0.0},{0.0,1.0,0.0},{0.0,0.0,1.0}},
   tau[3][3] = {{0.0, 0.0, 0.0},{0.0,0.0,0.0},{0.0,0.0,0.0}}, delta[3][3] = {{1.0, 0.0, 0.0},{0.0,1.0,0.0},{0.0,0.0,1.0}};
+  su2double Mean_deltaPrT = 0.0, effective_Prandtl_Turb;
   
   su2double Prandtl_Lam  = config->GetPrandtl_Lam();
   su2double Prandtl_Turb = config->GetPrandtl_Turb();
@@ -16700,6 +16711,7 @@ void CNSSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_contain
   
   bool implicit = (config->GetKind_TimeIntScheme_Flow() == EULER_IMPLICIT);
   bool grid_movement  = config->GetGrid_Movement();
+  bool rug_spalart_allmaras = config->GetKind_Turb_Model() == SA_ROUGH;
   
   /*--- Identify the boundary ---*/
   
@@ -16779,6 +16791,10 @@ void CNSSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_contain
       
       laminar_viscosity    = node[iPoint]->GetLaminarViscosity();
       eddy_viscosity       = node[iPoint]->GetEddyViscosity();
+      if (rug_spalart_allmaras) {
+          Mean_deltaPrT = solver_container[TURB_SOL]->node[iPoint]->GetdeltaPrT();
+        }
+      effective_Prandtl_Turb = Mean_deltaPrT + Prandtl_Turb;  
       thermal_conductivity = Cp * ( laminar_viscosity/Prandtl_Lam + eddy_viscosity/Prandtl_Turb);
       
       // work in progress on real-gases...

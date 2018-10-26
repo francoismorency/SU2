@@ -838,7 +838,7 @@ inline void CSolver::TurboPerformance(CSolver *solver, CConfig *config, unsigned
 
 inline void CSolver::StoreTurboPerformance(CSolver *solver, unsigned short inMarkerTP ) { }
 
-inline void CSolver::Friction_Forces(CGeometry *geometry, CConfig *config) { }
+inline void CSolver::Friction_Forces(CGeometry *geometry, CSolver **solver_container, CConfig *config) { }
 
 inline void CSolver::Inviscid_DeltaForces(CGeometry *geometry, CSolver **solver_container, CConfig *config) { }
 
