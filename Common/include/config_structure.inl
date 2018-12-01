@@ -319,6 +319,8 @@ inline unsigned long CConfig::GetDyn_nIntIter(void) { return Dyn_nIntIter; }
 
 inline long CConfig::GetUnst_RestartIter(void) { return Unst_RestartIter; }
 
+inline long CConfig::GetAvg_StartIter(void) { return Avg_Start_Iter; }
+
 inline long CConfig::GetUnst_AdjointIter(void) { return Unst_AdjointIter; }
 
 inline bool CConfig::GetReorientElements(void) { return ReorientElements; }

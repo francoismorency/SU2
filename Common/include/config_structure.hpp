@@ -396,6 +396,7 @@ private:
   unsigned long Unst_nIntIter;			/*!< \brief Number of internal iterations (Dual time Method). */
   unsigned long Dyn_nIntIter;			/*!< \brief Number of internal iterations (Newton-Raphson Method for nonlinear structural analysis). */
   long Unst_RestartIter;			/*!< \brief Iteration number to restart an unsteady simulation (Dual time Method). */
+  long Avg_Start_Iter;              /*!< \brief Iteration number to start solution average for DDES simulation. */
   long Unst_AdjointIter;			/*!< \brief Iteration number to begin the reverse time integration in the direct solver for the unsteady adjoint. */
   long Iter_Avg_Objective;			/*!< \brief Iteration the number of time steps to be averaged, counting from the back */
   long Dyn_RestartIter;			/*!< \brief Iteration number to restart a dynamic structural analysis. */
@@ -2911,6 +2912,12 @@ public:
    * \return Restart iteration number for unsteady simulations.
    */
   long GetUnst_RestartIter(void);
+  
+  /*!
+   * \brief Get the iteration number to start averaging solution for unsteady simulations.
+   * \return Iteration number to start averaging solution for unsteady simulations.
+   */
+  long GetAvg_StartIter(void);
   
   /*!
    * \brief Get the starting direct iteration number for the unsteady adjoint (reverse time integration).
