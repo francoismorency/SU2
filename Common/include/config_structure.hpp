@@ -460,6 +460,7 @@ private:
   Kind_Struct_Solver;		/*!< \brief Determines the geometric condition (small or large deformations) for structural analysis. */
   unsigned short Kind_Turb_Model;			/*!< \brief Turbulent model definition. */
   unsigned short Kind_Trans_Model,			/*!< \brief Transition model definition. */
+  Kind_Hrug_Model,			/*!< \brief Roughness heat transfer model definition. */
   Kind_ActDisk, Kind_Engine_Inflow, Kind_Inlet, *Kind_Data_Riemann, *Kind_Data_NRBC;           /*!< \brief Kind of inlet boundary treatment. */
   su2double Linear_Solver_Error;		/*!< \brief Min error of the linear solver for the implicit formulation. */
   su2double Linear_Solver_Error_FSI_Struc;		/*!< \brief Min error of the linear solver for the implicit formulation in the structural side for FSI problems . */
@@ -673,6 +674,9 @@ private:
   Rugosity_Wall, /* !< \brief Constant rugosity at walls for SA_Rough model */
   Roughness_Height, /* !< \brief Constant roughness height at wall for SA_Rough model */
   Surface_Ratio_Corrected, /* < \brief Corrected wetted surface ratio at wall for SA_Rough model */
+  Roughness_Constant, /* < \brief Constant that depend on roughness geometry for Kays-Crawford model */ 
+  Sandgrain_Alpha, /* !< \brief Exponent for the sand grain roughness for Kays-Crawford model */
+  Prandtl_Beta, /* !< \brief Exponent for the Prandtl number in the Kays-Crawford model */
   NuFactor_Engine,  /*!< \brief Ratio of turbulent to laminar viscosity at the engine. */
   SecondaryFlow_ActDisk,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
   Initial_BCThrust,  /*!< \brief Ratio of turbulent to laminar viscosity at the actuator disk. */
@@ -1648,6 +1652,24 @@ public:
    * \return corrected wetted surface ratio.
    */
   su2double GetSurface_Ratio_Corrected(void);   
+  
+  /*!
+   * \brief Get the value of the constant that depend on roughness geometry for Kays-Crawford model 
+   * \return constant value.
+   */
+  su2double GetRoughness_Constant(void); 
+  
+   /*!
+   * \brief Get the value of the exponent for the sandgrain roughness for  Kays-Crawford model 
+   * \return constant value.
+   */
+  su2double GetSandgrain_Alpha(void); 
+  
+  /*!
+   * \brief Get the value of the exponent Prandtl number for  Kays-Crawford model 
+   * \return constant value.
+   */
+  su2double GetPrandtl_Beta(void); 
   
   /*!
    * \brief Get the value of the non-dimensionalized actuator disk turbulence intensity.
@@ -3317,6 +3339,12 @@ public:
    * \return Kind of the transion model.
    */
   unsigned short GetKind_Trans_Model(void);
+  
+  /*!
+   * \brief Get the kind of the roughness heat transfer model.
+   * \return Kind of the roughness heat transfer model.
+   */
+  unsigned short GetKind_Hrug_Model(void);
   
   /*!
    * \brief Get the kind of adaptation technique.

@@ -542,6 +542,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 
   /*!\brief KIND_TRANS_MODEL \n DESCRIPTION: Specify transition model OPTIONS: see \link Trans_Model_Map \endlink \n DEFAULT: NO_TRANS_MODEL \ingroup Config*/
   addEnumOption("KIND_TRANS_MODEL", Kind_Trans_Model, Trans_Model_Map, NO_TRANS_MODEL);
+  
+   /*!\brief KIND_HRUG_MODEL \n DESCRIPTION: Specify heat roughness model OPTIONS: see \link Hrug_Model_Map \endlink \n DEFAULT: NO_HRUG_MODEL \ingroup Config*/
+  addEnumOption("KIND_HRUG_MODEL", Kind_Hrug_Model, Hrug_Model_Map, NO_HRUG_MODEL);
 
   /*\brief AXISYMMETRIC \n DESCRIPTION: Axisymmetric simulation \n DEFAULT: false \ingroup Config */
   addBoolOption("AXISYMMETRIC", Axisymmetric, false);
@@ -653,6 +656,12 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("ROUGHNESS_HEIGHT",Roughness_Height,1.0e-12);
   /* DESCRIPTION:  */
   addDoubleOption("SURFACE_RATIO_CORRECTED",Surface_Ratio_Corrected,1.0);
+  /* DESCRIPTION:  */
+  addDoubleOption("ROUGHNESS_CONSTANT",Roughness_Constant,1.92);
+ /* DESCRIPTION:  */
+  addDoubleOption("SANDGRAIN_ALPHA",Sandgrain_Alpha,0.45);
+ /* DESCRIPTION:  */
+  addDoubleOption("PRANDTL_BETA",Prandtl_Beta,0.8);  
   /* DESCRIPTION:  */
   addDoubleOption("ACTDISK_SECONDARY_FLOW", SecondaryFlow_ActDisk, 0.0);
   /* DESCRIPTION:  */
@@ -3708,11 +3717,24 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case SA_NEG: cout << "Negative Spalart Allmaras" << endl; break;
           case SST:    cout << "Menter's SST"     << endl; break;
           case SA_ROUGH:    
-              cout << "Rough wall Spalart Allmaras"  << endl;
-              cout << "equivalent sand grain roughness: " << Rugosity_Wall << "." << endl;
-              cout << "roughness height: " << Roughness_Height << "." << endl;
-              cout << "corrected wetted surface ratio: " << Surface_Ratio_Corrected << "." << endl; 
-              break;
+              cout << "Rough wall Spalart Allmaras: " ;
+              switch (Kind_Hrug_Model) {
+              	case HAX:
+              	cout << "Aupoix model for roughness heat transfer" << endl; 
+              	cout << "roughness height: " << Roughness_Height << "." << endl;
+              	cout << "corrected wetted surface ratio: " << Surface_Ratio_Corrected << "." << endl; 
+ 				break;
+ 				case HKC:
+ 				cout << "Kays and Crawford model for roughness heat transfer" << endl; 
+ 				cout << "Constant function of Roughness Geometry: " << Roughness_Constant << "." << endl;
+ 				cout << "Exponent equivalent sand grain roughness: " << Sandgrain_Alpha << "." << endl;
+ 				cout << "Exponent Prandtl for roughness heta transfer: " << Prandtl_Beta << "." << endl;
+ 				break;
+ 				case NONE:
+ 				cout << "No model for roughness heat transfer" << endl; break;
+ 				}  
+ 			   cout << "equivalent sand grain roughness: " << Rugosity_Wall << "." << endl;         
+            break;
         }
         break;
       case POISSON_EQUATION: cout << "Poisson equation." << endl; break;

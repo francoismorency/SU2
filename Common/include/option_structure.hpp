@@ -649,6 +649,20 @@ static const map<string, ENUM_TRANS_MODEL> Trans_Model_Map = CCreateMap<string, 
 ("BC", BC); //BAS-CAKMAKCIOGLU
 
 /*!
+ * \brief types of heat transfer roughness correction
+ */
+enum ENUM_HRUG_MODEL {
+  NO_HRUG_MODEL = 0,            /*!< \brief No heat transfer roughness correction model. */
+  HAX = 1,	/*!< \brief Kind of heat transfer roughness correction (Aupoix delta Prt model). */
+  HKC = 2	/*!< \brief Kind of heat transfer roughness correction (Kays and Crawford delta Prt model).. */
+};
+static const map<string, ENUM_HRUG_MODEL> Hrug_Model_Map = CCreateMap<string, ENUM_HRUG_MODEL>
+("NONE", NO_HRUG_MODEL)
+("HAX", HAX)
+("HKC", HKC); //Equivalent Kays and Crawford roughness heat model
+
+
+/*!
  * \brief type of time integration schemes
  */
 enum ENUM_TIME_INT {

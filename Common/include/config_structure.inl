@@ -439,6 +439,12 @@ inline su2double CConfig::GetRoughness_Height(void) { return Roughness_Height; }
 
 inline su2double CConfig::GetSurface_Ratio_Corrected(void) { return Surface_Ratio_Corrected; }
 
+inline su2double CConfig::GetRoughness_Constant(void) { return Roughness_Constant; }
+
+inline su2double CConfig::GetSandgrain_Alpha(void) { return Sandgrain_Alpha; }
+
+inline su2double CConfig::GetPrandtl_Beta(void) { return Prandtl_Beta; }
+
 inline su2double* CConfig::GetMassFrac_FreeStream(void) { return MassFrac_FreeStream; }
 
 inline su2double CConfig::GetLength_Reynolds(void) { return Length_Reynolds; }
@@ -1249,6 +1255,8 @@ inline void CConfig::SetSmoothNumGrid(bool val_smoothnumgrid) { SmoothNumGrid = 
 inline unsigned short CConfig::GetKind_Turb_Model(void) { return Kind_Turb_Model; }
 
 inline unsigned short CConfig::GetKind_Trans_Model(void) { return Kind_Trans_Model; }
+
+inline unsigned short CConfig::GetKind_Hrug_Model(void) { return Kind_Hrug_Model; }
 
 inline bool CConfig::GetFrozen_Visc(void) { return Frozen_Visc; }
 
