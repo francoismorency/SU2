@@ -719,6 +719,7 @@ private:
   Restart_AdjFileName,			/*!< \brief Restart file for adjoint variables, drag functional. */
   Restart_FEMFileName,			/*!< \brief Restart file for FEM elasticity. */
   Restart_AdjFEMFileName,      /*!< \brief Restart file for FEM elasticity. */
+  Average_FlowFileName,        /*!< \brief Output file for average solution. */
   Adj_FileName,					/*!< \brief Output file with the adjoint variables. */
   ObjFunc_Grad_FileName,			/*!< \brief Gradient of the objective function. */
   ObjFunc_Value_FileName,			/*!< \brief Objective function. */
@@ -5208,6 +5209,12 @@ public:
    * \return Name of the file with the adjoint variables.
    */
   string GetAdj_FileName(void);
+  
+  /*!
+   * \brief Get the name of the file for the average flow variable.
+   * \return Name of the file with the average flow variable.
+   */
+  string GetAverage_FlowFileName(void);
   
   /*!
    * \brief Get the name of the file with the gradient of the objective function.

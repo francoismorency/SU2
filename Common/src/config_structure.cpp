@@ -1125,7 +1125,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Number of iterations to average the objective */
   addLongOption("ITER_AVERAGE_OBJ", Iter_Avg_Objective , 0);
   /* DESCRIPTION: Iteration number to start average the solution (DDES analysis) */
-  addLongOption("AVERAGE_START_ITER", Avg_Start_Iter , 0);
+  addLongOption("AVERAGE_START_ITER", Avg_Start_Iter , 1000);
   /* DESCRIPTION: Iteration number to begin unsteady restarts (structural analysis) */
   addLongOption("DYN_RESTART_ITER", Dyn_RestartIter, 0);
   /* DESCRIPTION: Time discretization */
@@ -1455,6 +1455,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addStringOption("RESTART_STRUCTURE_FILENAME", Restart_FEMFileName, string("restart_structure.dat"));
   /*!\brief RESTART_ADJ_STRUCTURE_FILENAME \n DESCRIPTION: Output file restart structure \ingroup Config*/
   addStringOption("RESTART_ADJ_STRUCTURE_FILENAME", Restart_AdjFEMFileName, string("restart_adjoint_structure.dat"));
+  /*!\brief AVERAGE_FLOW_FILENAME \n DESCRIPTION: Output file average flow for unsteady \ingroup Config*/
+  addStringOption("AVERAGE_FLOW_FILENAME", Average_FlowFileName, string("average_flow.dat")); 
   /*!\brief VOLUME_FLOW_FILENAME  \n DESCRIPTION: Output file flow (w/o extension) variables \ingroup Config */
   addStringOption("VOLUME_FLOW_FILENAME", Flow_FileName, string("flow"));
   /*!\brief VOLUME_STRUCTURE_FILENAME

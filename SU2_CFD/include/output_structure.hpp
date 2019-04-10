@@ -122,6 +122,7 @@ class COutput {
   su2double **Local_Data_Copy;      // Local data copy for cte. lift mode
   su2double **Parallel_Data;        // node i (x, y, z) = (Coords[0][i], Coords[1][i], Coords[2][i])
   su2double **Parallel_Surf_Data;   // node i (x, y, z) = (Coords[0][i], Coords[1][i], Coords[2][i])
+  su2double **Average_Data;         // store the solution average 
   vector<string> Variable_Names;
 
   su2double **Data;
@@ -892,6 +893,53 @@ public:
    */
   void WriteCSV_Slice(CConfig *config, CGeometry *geometry, CSolver *FlowSolver, unsigned long iExtIter, unsigned short val_iZone, unsigned short val_direction);
 
+  /*!
+   * \brief Store and write the average solution for parallel computations.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] output_files - if the average should be written to file.
+   * \param[in] end_average - if the average is stopped.
+   * \param[in] iExtIter - Current external (time) iteration.
+   * \param[in] val_iZone - Total number of domains in the grid file.
+   * \param[in] val_nZone - Total number of domains in the grid file.
+   */
+  void SetSpecialOutput_Average(CSolver ****solver_container, CGeometry ***geometry, CConfig **config, bool output_files, bool end_average, unsigned long iExtIter, unsigned short val_nZone);
+
+  /*!
+   * \brief Store and compute an average solution in parallel.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver - Flow, adjoint or linearized solution.
+   * \param[in] val_iZone - iZone index.
+   */
+  void StoreAverage_Solution_Parallel(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone); 
+
+  /*!
+   * \brief Deallocate memory needed for averaging and writing output data in parallel.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   */
+  void DeallocateAverage_Data(CConfig *config, CGeometry *geometry);
+    
+  /*!
+   * \brief Write a average solution SU2 restart file (ASCII) in parallel.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver - Flow, adjoint or linearized solution.
+   * \param[in] val_iZone - iZone index.
+   */
+  void WriteAverage_Parallel_ASCII(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+  
+  /*!
+   * \brief Write average solution SU2 restart file (binary) in parallel.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver - Flow, adjoint or linearized solution.
+   * \param[in] val_iZone - iZone index.
+   */
+  void WriteAverage_Parallel_Binary(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+  
 };
 
 #include "output_structure.inl"

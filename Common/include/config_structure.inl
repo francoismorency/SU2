@@ -1446,6 +1446,8 @@ inline string CConfig::GetRestart_HeatFileName(void) { return Restart_HeatFileNa
 
 inline string CConfig::GetRestart_AdjFileName(void) { return Restart_AdjFileName; }
 
+inline string CConfig::GetAverage_FlowFileName(void) { return Average_FlowFileName; }
+
 inline string CConfig::GetRestart_FEMFileName(void) { return Restart_FEMFileName; }
 
 inline string CConfig::GetRestart_AdjFEMFileName(void) { return Restart_AdjFEMFileName; }

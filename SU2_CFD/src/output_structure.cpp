@@ -96,6 +96,7 @@ COutput::COutput(CConfig *config) {
   Local_Data_Copy    = NULL;
   Parallel_Data      = NULL;
   Parallel_Surf_Data = NULL;
+  Average_Data       = NULL;
 
   /*--- Inlet profile data structures. ---*/
 
@@ -12615,6 +12616,23 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
       Variable_Names.push_back("Roe_Dissipation");
     }
     
+    /*--- Additional turbulent stress tensor for average DDES solution ---*/
+    if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES){
+      nVar_Par +=1;
+      Variable_Names.push_back("X-mom*X-mom");
+      nVar_Par +=1;
+      Variable_Names.push_back("X-mom*Y-mom");
+      nVar_Par +=1;
+      Variable_Names.push_back("X-mom*W-mom");
+      nVar_Par +=1;
+      Variable_Names.push_back("Y-mom*Y-mom");
+      nVar_Par +=1;
+      Variable_Names.push_back("Y-mom*W-mom");
+      nVar_Par +=1;
+      Variable_Names.push_back("W-mom*W-mom");
+    }    
+    
+    
     /*--- New variables get registered here before the end of the loop. ---*/
     
   }
@@ -12838,6 +12856,15 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
         
         if (config->GetKind_RoeLowDiss() != NO_ROELOWDISS){
           Local_Data[jPoint][iVar] = solver[FLOW_SOL]->node[iPoint]->GetRoe_Dissipation(); iVar++;
+        }
+        
+        if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES){
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(1)*solver[FirstIndex]->node[iPoint]->GetSolution(1); iVar++;
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(1)*solver[FirstIndex]->node[iPoint]->GetSolution(2); iVar++;
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(1)*solver[FirstIndex]->node[iPoint]->GetSolution(3); iVar++;
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(2)*solver[FirstIndex]->node[iPoint]->GetSolution(2); iVar++;
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(2)*solver[FirstIndex]->node[iPoint]->GetSolution(3); iVar++;
+          Local_Data[jPoint][iVar] = solver[FirstIndex]->node[iPoint]->GetSolution(3)*solver[FirstIndex]->node[iPoint]->GetSolution(3); iVar++;
         }
         
         /*--- New variables can be loaded to the Local_Data structure here,
@@ -18969,4 +18996,632 @@ void COutput::SpecialOutput_AnalyzeSurface(CSolver *solver, CGeometry *geometry,
   delete [] Surface_MassFlow_Abs;
   
 }
+void COutput::SetSpecialOutput_Average(CSolver ****solver_container,
+                                       CGeometry ***geometry,
+                                       CConfig **config,
+                                       bool output_files,
+                                       bool end_average,
+                                       unsigned long iExtIter,
+                                       unsigned short val_nZone) {
+  
+  unsigned short iZone;
+  bool compressible = true;
 
+  for (iZone = 0; iZone < val_nZone; iZone++) {
+    
+    /*--- Check for compressible/incompressible flow problems. ---*/
+
+    compressible = (config[iZone]->GetKind_Regime() == COMPRESSIBLE);
+
+    /*--- This switch statement will become a call to a virtual function
+     defined within each of the "physics" output child classes that loads
+     the local data for that particular problem alone. ---*/
+    
+    if (rank == MASTER_NODE)
+      cout << "Loading solution output data locally on each rank." << endl;
+    
+    switch (config[iZone]->GetKind_Solver()) {
+      case EULER : case NAVIER_STOKES: case RANS :
+        if (compressible)
+          LoadLocalData_Flow(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0], iZone);
+        else
+          LoadLocalData_IncFlow(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0], iZone);
+        break;
+      default: break;
+    }
+    
+    
+    /*--- After loading the data local to a processor, we perform a sorting,
+     i.e., a linear partitioning of the data across all ranks in the communicator. ---*/
+    
+    if (rank == MASTER_NODE) cout << "Sorting output data across all ranks." << endl;
+    SortOutputData(config[iZone], geometry[iZone][MESH_0]);
+    
+    /*--- Compute average solution for restart file in parallel. ---*/
+
+    if (rank == MASTER_NODE) cout << "Compute average solution." << endl;
+    StoreAverage_Solution_Parallel(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0], iZone);
+    
+    /*--- Deallocate the nodal data needed for averaging solution. ---*/
+    
+    DeallocateData_Parallel(config[iZone], geometry[iZone][MESH_0]);
+    
+    /*--- Write the average in a pseudo-restart file ---*/
+    if (output_files) {
+      if (config[iZone]->GetWrt_Binary_Restart()) {
+        if (rank == MASTER_NODE) cout << "Writing average in Binary SU2 native restart file." << endl;
+        WriteAverage_Parallel_Binary(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0], iZone);
+      } else {
+        if (rank == MASTER_NODE) cout << "Writing average in ASCII SU2 native restart file." << endl;
+        WriteAverage_Parallel_ASCII(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0], iZone);
+      }    
+    }
+    
+    /*--- Deallocate the nodal data to store averaging solution. ---*/
+    if (end_average) DeallocateAverage_Data(config[iZone], geometry[iZone][MESH_0]);
+    
+    /*--- Clear the variable names list. ---*/
+    
+    /*--- not needed FM think Variable_Names.clear(); ---*/
+
+  }
+}
+
+void COutput::StoreAverage_Solution_Parallel(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone) {
+  
+  /*--- Local variables ---*/
+  
+  unsigned short nZone = geometry->GetnZone();
+  unsigned short iVar;
+  unsigned long iPoint, iExtIter = config->GetExtIter();
+  bool fem       = (config->GetKind_Solver() == FEM_ELASTICITY);
+  bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
+  bool adjoint   = (config->GetContinuous_Adjoint() ||
+                    config->GetDiscrete_Adjoint());
+  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  int ave_start = (config->GetAvg_StartIter()); 
+  int iter_length = iExtIter - ave_start;
+  ofstream restart_file;
+  string filename;
+  
+  int iProcessor;
+
+  /*--- Allocate, if needed, the space in memory to store average solution ---*/
+  if ( Average_Data == NULL ){
+    Average_Data = new su2double*[nVar_Par];
+    for (int jj = 0; jj < nVar_Par; jj++) {
+      Average_Data[jj] = new su2double[nParallel_Poin]; 
+    }
+  }
+  
+#ifdef HAVE_MPI
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+  
+  
+  /*--- Compute and store the average in parallel, processor by processor. ---*/
+  unsigned long myPoint = 0, offset = 0, Global_Index;
+  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+    if (rank == iProcessor) {
+      for (iPoint = 0; iPoint < nParallel_Poin; iPoint++) {
+        
+        /*--- Global Index of the current point. (note outer loop over procs) ---*/
+        
+        Global_Index = iPoint + offset;
+        
+        /*--- Only write original domain points, i.e., exclude any periodic
+         or halo nodes, even if they are output in the viz. files. ---*/
+        
+        if (Global_Index < geometry->GetGlobal_nPointDomain()) {
+          
+          myPoint++;
+          
+          /*--- Loop over the variables and write the values to file ---*/
+          
+          for (iVar = 0; iVar < nVar_Par; iVar++) {
+            if ( iter_length > 0){
+              Average_Data[iVar][iPoint]=(Average_Data[iVar][iPoint]*float(iter_length)+Parallel_Data[iVar][iPoint]);
+              Average_Data[iVar][iPoint]=Average_Data[iVar][iPoint]/float(iter_length+1);
+              } else {
+              Average_Data[iVar][iPoint]=Parallel_Data[iVar][iPoint];
+              }
+          }
+        }
+      }
+    }
+    
+#ifdef HAVE_MPI
+    SU2_MPI::Allreduce(&myPoint, &offset, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+    
+  }
+}
+
+void COutput::DeallocateAverage_Data(CConfig *config, CGeometry *geometry) {
+  
+  /*--- Deallocate memory for surface solution data ---*/
+
+  for (unsigned short iVar = 0; iVar < nVar_Par; iVar++) {
+    if (Average_Data[iVar] != NULL) delete [] Average_Data[iVar];
+  }
+  if (Average_Data != NULL) delete [] Average_Data;
+  
+}
+
+void COutput::WriteAverage_Parallel_ASCII(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone) {
+  
+  /*--- Local variables ---*/
+  
+  unsigned short nZone = geometry->GetnZone();
+  unsigned short iVar;
+  unsigned long iPoint, iExtIter = config->GetExtIter();
+  bool fem       = (config->GetKind_Solver() == FEM_ELASTICITY);
+  bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
+  bool adjoint   = (config->GetContinuous_Adjoint() ||
+                    config->GetDiscrete_Adjoint());
+  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  ofstream restart_file;
+  string filename;
+  
+  int iProcessor;
+  /*--- For now, the average can only be written in ASCII, although it should
+        not be difficult to create a class to write in Binary. This class is only
+        a copy of WriteRestart_Parallel_ASCII with change in filename and Average_Data 
+        instead of Parallel_Data. For now the file content is exactly the same as 
+        the normal restart file. ---*/
+        
+  /*--- Retrieve filename from config ---*/
+  
+  filename = config->GetAverage_FlowFileName();
+
+  
+  /*--- Append the zone number if multizone problems ---*/
+  if (nZone > 1)
+    filename= config->GetMultizone_FileName(filename, val_iZone);
+  
+  /*--- Unsteady problems require an iteration number to be appended. ---*/
+  if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(val_iZone));
+  } else if (config->GetWrt_Unsteady()) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(iExtIter));
+  } else if ((fem || disc_adj_fem) && (config->GetWrt_Dynamic())) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(iExtIter));
+  }
+  
+  /*--- Only the master node writes the header. ---*/
+  
+  if (rank == MASTER_NODE) {
+    restart_file.open(filename.c_str(), ios::out);
+    restart_file.precision(15);
+    restart_file << "\"PointID\"";
+    for (iVar = 0; iVar < Variable_Names.size()-1; iVar++)
+      restart_file << "\t\"" << Variable_Names[iVar] << "\"";
+    restart_file << "\t\"" << Variable_Names[Variable_Names.size()-1] << "\"" << endl;
+    restart_file.close();
+  }
+  
+#ifdef HAVE_MPI
+  SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+  
+  /*--- All processors open the file. ---*/
+  
+  restart_file.open(filename.c_str(), ios::out | ios::app);
+  restart_file.precision(15);
+  
+  /*--- Write the restart file in parallel, processor by processor. ---*/
+  
+  unsigned long myPoint = 0, offset = 0, Global_Index;
+  for (iProcessor = 0; iProcessor < size; iProcessor++) {
+    if (rank == iProcessor) {
+      for (iPoint = 0; iPoint < nParallel_Poin; iPoint++) {
+        
+        /*--- Global Index of the current point. (note outer loop over procs) ---*/
+        
+        Global_Index = iPoint + offset;
+        
+        /*--- Only write original domain points, i.e., exclude any periodic
+         or halo nodes, even if they are output in the viz. files. ---*/
+        
+        if (Global_Index < geometry->GetGlobal_nPointDomain()) {
+          
+          /*--- Write global index. (note outer loop over procs) ---*/
+          
+          restart_file << Global_Index << "\t";
+          myPoint++;
+          
+          /*--- Loop over the variables and write the values to file ---*/
+          
+          for (iVar = 0; iVar < nVar_Par; iVar++) {
+            restart_file << scientific << Average_Data[iVar][iPoint] << "\t";
+          }
+          restart_file << "\n";
+        }
+      }
+    }
+    /*--- Flush the file and wait for all processors to arrive. ---*/
+    restart_file.flush();
+#ifdef HAVE_MPI
+    SU2_MPI::Allreduce(&myPoint, &offset, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
+    
+  }
+
+  /*--- Write the metadata (master rank alone) ----*/
+
+  if (rank == MASTER_NODE) {
+    if (dual_time)
+      restart_file <<"EXT_ITER= " << config->GetExtIter() + 1 << endl;
+    else
+      restart_file <<"EXT_ITER= " << config->GetExtIter() + config->GetExtIter_OffSet() + 1 << endl;
+    restart_file <<"AOA= " << config->GetAoA() - config->GetAoA_Offset() << endl;
+    restart_file <<"SIDESLIP_ANGLE= " << config->GetAoS() - config->GetAoS_Offset() << endl;
+    restart_file <<"INITIAL_BCTHRUST= " << config->GetInitial_BCThrust() << endl;
+    restart_file <<"DCD_DCL_VALUE= " << config->GetdCD_dCL() << endl;
+    restart_file <<"DCMX_DCL_VALUE= " << config->GetdCMx_dCL() << endl;
+    restart_file <<"DCMY_DCL_VALUE= " << config->GetdCMy_dCL() << endl;
+    restart_file <<"DCMZ_DCL_VALUE= " << config->GetdCMz_dCL() << endl;
+    if (adjoint) restart_file << "SENS_AOA=" << solver[ADJFLOW_SOL]->GetTotal_Sens_AoA() * PI_NUMBER / 180.0 << endl;
+  }
+
+  /*--- All processors close the file. ---*/
+
+  restart_file.close();
+  
+}
+void COutput::WriteAverage_Parallel_Binary(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone) {
+
+  /*--- Local variables ---*/
+
+  unsigned short iVar, nZone = geometry->GetnZone();
+  unsigned long iPoint, iExtIter = config->GetExtIter();
+  bool fem       = (config->GetKind_Solver() == FEM_ELASTICITY);
+  bool adjoint   = (config->GetContinuous_Adjoint() ||
+                    config->GetDiscrete_Adjoint());
+  bool dual_time = ((config->GetUnsteady_Simulation() == DT_STEPPING_1ST) ||
+                    (config->GetUnsteady_Simulation() == DT_STEPPING_2ND));
+  bool wrt_perf  = config->GetWrt_Performance();
+  ofstream restart_file;
+  string filename;
+  char str_buf[CGNS_STRING_SIZE], fname[100];
+  su2double file_size = 0.0, StartTime, StopTime, UsedTime, Bandwidth;
+
+  /*--- Retrieve filename from config ---*/
+
+  filename = config->GetAverage_FlowFileName();
+  
+  /*--- Append the zone number if multizone problems ---*/
+  if (nZone > 1)
+    filename= config->GetMultizone_FileName(filename, val_iZone);
+
+  /*--- Unsteady problems require an iteration number to be appended. ---*/
+  if (config->GetUnsteady_Simulation() == HARMONIC_BALANCE) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(val_iZone));
+  } else if (config->GetWrt_Unsteady()) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(iExtIter));
+  } else if ((fem) && (config->GetWrt_Dynamic())) {
+    filename = config->GetUnsteady_FileName(filename, SU2_TYPE::Int(iExtIter));
+  }
+
+  strcpy(fname, filename.c_str());
+
+  /*--- These point offsets should be computed once and stored so that we don't
+  repeat this code throughout. ---*/
+
+  /*--- Search all send/recv boundaries on this partition for any periodic
+   nodes that were part of the original domain. We want to recover these
+   for visualization purposes. ---*/
+
+  unsigned long iVertex;
+  bool isPeriodic;
+
+  int *Local_Halo = new int[geometry->GetnPoint()];
+  for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
+    Local_Halo[iPoint] = !geometry->node[iPoint]->GetDomain();
+
+  for (unsigned short iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+    if (config->GetMarker_All_KindBC(iMarker) == SEND_RECEIVE) {
+
+      /*--- Checking for less than or equal to the rank, because there may
+       be some periodic halo nodes that send info to the same rank. ---*/
+
+      for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+        iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+        isPeriodic = ((geometry->vertex[iMarker][iVertex]->GetRotation_Type() > 0) &&
+                      (geometry->vertex[iMarker][iVertex]->GetRotation_Type() % 2 == 1));
+        if (isPeriodic) Local_Halo[iPoint] = false;
+      }
+    }
+  }
+
+  /*--- Sum total number of nodes that belong to the domain ---*/
+
+  unsigned long nTotalPoint;
+  unsigned long nLocalPoint = 0;
+  for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++)
+    if (Local_Halo[iPoint] == false)
+      nLocalPoint++;
+
+#ifdef HAVE_MPI
+  SU2_MPI::Allreduce(&nLocalPoint, &nTotalPoint, 1,
+                     MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+#else
+  nTotalPoint = nLocalPoint;
+#endif
+
+  /*--- Now that we know the actual number of points we need to output,
+   compute the number of points that will be on each processor.
+   This is a linear partitioning with the addition of a simple load
+   balancing for any remainder points. ---*/
+
+  unsigned long *npoint_procs  = new unsigned long[size];
+  unsigned long *nPoint_Linear = new unsigned long[size+1];
+
+  unsigned long total_pt_accounted = 0;
+  for (int ii = 0; ii < size; ii++) {
+    npoint_procs[ii] = nTotalPoint/size;
+    total_pt_accounted = total_pt_accounted + npoint_procs[ii];
+  }
+
+  /*--- Get the number of remainder points after the even division. ---*/
+
+  unsigned long rem_points = nTotalPoint-total_pt_accounted;
+  for (unsigned long ii = 0; ii < rem_points; ii++) {
+    npoint_procs[ii]++;
+  }
+
+  /*--- Store the point offsets for each rank. ---*/
+
+  nPoint_Linear[0] = 0;
+  for (int ii = 1; ii < size; ii++) {
+    nPoint_Linear[ii] = nPoint_Linear[ii-1] + npoint_procs[ii-1];
+  }
+  nPoint_Linear[size] = nTotalPoint;
+
+  /*--- Prepare the first ints containing the counts. The first is a
+   magic number that we can use to check for binary files (it is the hex
+   representation for "SU2"). The second two values are number of variables
+   and number of points (DoFs). The last two values are for metadata: 
+   one int for ExtIter and 8 su2doubles. ---*/
+
+  int var_buf_size = 5;
+  int var_buf[5] = {535532, nVar_Par, (int)nTotalPoint, 1, 8};
+
+  /*--- Prepare the 1D data buffer on this rank. ---*/
+
+  passivedouble *buf = new passivedouble[nParallel_Poin*nVar_Par];
+
+  /*--- For now, create a temp 1D buffer to load up the data for writing.
+   This will be replaced with a derived data type most likely. ---*/
+
+  for (iPoint = 0; iPoint < nParallel_Poin; iPoint++)
+    for (iVar = 0; iVar < nVar_Par; iVar++)
+      buf[iPoint*nVar_Par+iVar] = SU2_TYPE::GetValue(Average_Data[iVar][iPoint]);
+
+  /*--- Prepare metadata. ---*/
+
+  int Restart_ExtIter;
+  if (dual_time)
+    Restart_ExtIter= (int)config->GetExtIter() + 1;
+  else
+    Restart_ExtIter = (int)config->GetExtIter() + (int)config->GetExtIter_OffSet() + 1;
+
+  passivedouble Restart_Metadata[8] = {
+    SU2_TYPE::GetValue(config->GetAoA() - config->GetAoA_Offset()),
+    SU2_TYPE::GetValue(config->GetAoS() - config->GetAoS_Offset()),
+    SU2_TYPE::GetValue(config->GetInitial_BCThrust()),
+    SU2_TYPE::GetValue(config->GetdCD_dCL()),
+    SU2_TYPE::GetValue(config->GetdCMx_dCL()),
+    SU2_TYPE::GetValue(config->GetdCMy_dCL()),
+    SU2_TYPE::GetValue(config->GetdCMz_dCL()),
+    0.0
+  };
+
+  if (adjoint) Restart_Metadata[4] = SU2_TYPE::GetValue(solver[ADJFLOW_SOL]->GetTotal_Sens_AoA() * PI_NUMBER / 180.0);
+
+  /*--- Set a timer for the binary file writing. ---*/
+  
+#ifndef HAVE_MPI
+  StartTime = su2double(clock())/su2double(CLOCKS_PER_SEC);
+#else
+  StartTime = MPI_Wtime();
+#endif
+  
+#ifndef HAVE_MPI
+
+  FILE* fhw;
+  fhw = fopen(fname, "wb");
+
+  /*--- Error check for opening the file. ---*/
+
+  if (!fhw) {
+    SU2_MPI::Error(string("Unable to open SU2 restart file ") + string(fname), CURRENT_FUNCTION);
+  }
+
+  /*--- First, write the number of variables and points. ---*/
+
+  fwrite(var_buf, var_buf_size, sizeof(int), fhw);
+  file_size += (su2double)var_buf_size*sizeof(int);
+  
+  /*--- Write the variable names to the file. Note that we are adopting a
+   fixed length of 33 for the string length to match with CGNS. This is 
+   needed for when we read the strings later. ---*/
+
+  for (iVar = 0; iVar < nVar_Par; iVar++) {
+    strncpy(str_buf, Variable_Names[iVar].c_str(), CGNS_STRING_SIZE);
+    fwrite(str_buf, CGNS_STRING_SIZE, sizeof(char), fhw);
+    file_size += (su2double)CGNS_STRING_SIZE*sizeof(char);
+  }
+
+  /*--- Call to write the entire restart file data in binary in one shot. ---*/
+
+  fwrite(buf, nVar_Par*nParallel_Poin, sizeof(passivedouble), fhw);
+  file_size += (su2double)nVar_Par*nParallel_Poin*sizeof(passivedouble);
+
+  /*--- Write the external iteration. ---*/
+
+  fwrite(&Restart_ExtIter, 1, sizeof(int), fhw);
+  file_size += (su2double)sizeof(int);
+
+  /*--- Write the metadata. ---*/
+
+  fwrite(Restart_Metadata, 8, sizeof(passivedouble), fhw);
+  file_size += (su2double)8*sizeof(passivedouble);
+
+  /*--- Close the file. ---*/
+
+  fclose(fhw);
+
+#else
+
+  /*--- Parallel binary output using MPI I/O. ---*/
+
+  MPI_File fhw;
+  SU2_MPI::Status status;
+  MPI_Datatype etype, filetype;
+  MPI_Offset disp;
+  int ierr;
+
+  /*--- We're writing only su2doubles in the data portion of the file. ---*/
+
+  etype = MPI_DOUBLE;
+
+  /*--- Define a derived datatype for this ranks contiguous chunk of data
+   that will be placed in the restart (1D array size = num points * num vars). ---*/
+
+  MPI_Type_contiguous(nVar_Par*nParallel_Poin, MPI_DOUBLE, &filetype);
+  MPI_Type_commit(&filetype);
+
+  /*--- All ranks open the file using MPI. Here, we try to open the file with
+   exclusive so that an error is generated if the file exists. We always want
+   to write a fresh restart file, so we delete any existing files and create
+   a new one. ---*/
+
+  ierr = MPI_File_open(MPI_COMM_WORLD, fname,
+                       MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
+                       MPI_INFO_NULL, &fhw);
+  if (ierr != MPI_SUCCESS)  {
+    if (rank == 0)
+      MPI_File_delete(fname, MPI_INFO_NULL);
+    ierr = MPI_File_open(MPI_COMM_WORLD, fname,
+                         MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
+                         MPI_INFO_NULL, &fhw);
+  }
+
+  /*--- Error check opening the file. ---*/
+
+  if (ierr) {
+    SU2_MPI::Error(string("Unable to open SU2 restart file ") + string(fname), CURRENT_FUNCTION);
+  }
+
+  /*--- First, write the number of variables and points (i.e., cols and rows),
+   which we will need in order to read the file later. Also, write the 
+   variable string names here. Only the master rank writes the header. ---*/
+
+  if (rank == MASTER_NODE) {
+    MPI_File_write(fhw, var_buf, var_buf_size, MPI_INT, MPI_STATUS_IGNORE);
+    file_size += (su2double)var_buf_size*sizeof(int);
+
+    /*--- Write the variable names to the file. Note that we are adopting a
+     fixed length of 33 for the string length to match with CGNS. This is
+     needed for when we read the strings later. ---*/
+
+    for (iVar = 0; iVar < nVar_Par; iVar++) {
+      disp = var_buf_size*sizeof(int) + iVar*CGNS_STRING_SIZE*sizeof(char);
+      strcpy(str_buf, Variable_Names[iVar].c_str());
+      MPI_File_write_at(fhw, disp, str_buf, CGNS_STRING_SIZE, MPI_CHAR, MPI_STATUS_IGNORE);
+      file_size += (su2double)CGNS_STRING_SIZE*sizeof(char);
+    }
+  }
+
+  /*--- Compute the offset for this rank's linear partition of the data in bytes.
+   After the calculations above, we have the partition sizes store in nPoint_Linear
+   in cumulative storage format. ---*/
+
+  disp = (var_buf_size*sizeof(int) + nVar_Par*CGNS_STRING_SIZE*sizeof(char) +
+          nVar_Par*nPoint_Linear[rank]*sizeof(passivedouble));
+
+  /*--- Set the view for the MPI file write, i.e., describe the location in
+   the file that this rank "sees" for writing its piece of the restart file. ---*/
+
+  MPI_File_set_view(fhw, disp, etype, filetype, (char*)"native", MPI_INFO_NULL);
+
+  /*--- Collective call for all ranks to write to their view simultaneously. ---*/
+
+  MPI_File_write_all(fhw, buf, nVar_Par*nParallel_Poin, MPI_DOUBLE, &status);
+  file_size += (su2double)nVar_Par*nParallel_Poin*sizeof(passivedouble);
+
+  /*--- Free the derived datatype. ---*/
+
+  MPI_Type_free(&filetype);
+
+  /*--- Reset the file view before writing the metadata. ---*/
+
+  MPI_File_set_view(fhw, 0, MPI_BYTE, MPI_BYTE, (char*)"native", MPI_INFO_NULL);
+
+  /*--- Finally, the master rank writes the metadata. ---*/
+
+  if (rank == MASTER_NODE) {
+
+    /*--- External iteration. ---*/
+
+    disp = (var_buf_size*sizeof(int) + nVar_Par*CGNS_STRING_SIZE*sizeof(char) +
+            nVar_Par*nTotalPoint*sizeof(passivedouble));
+    MPI_File_write_at(fhw, disp, &Restart_ExtIter, 1, MPI_INT, MPI_STATUS_IGNORE);
+    file_size += (su2double)sizeof(int);
+
+    /*--- Additional doubles for AoA, AoS, etc. ---*/
+
+    disp = (var_buf_size*sizeof(int) + nVar_Par*CGNS_STRING_SIZE*sizeof(char) +
+            nVar_Par*nTotalPoint*sizeof(passivedouble) + 1*sizeof(int));
+    MPI_File_write_at(fhw, disp, Restart_Metadata, 8, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    file_size += (su2double)8*sizeof(passivedouble);
+
+  }
+
+  /*--- All ranks close the file after writing. ---*/
+
+  MPI_File_close(&fhw);
+
+#endif
+
+  /*--- Compute and store the write time. ---*/
+  
+#ifndef HAVE_MPI
+  StopTime = su2double(clock())/su2double(CLOCKS_PER_SEC);
+#else
+  StopTime = MPI_Wtime();
+#endif
+  UsedTime = StopTime-StartTime;
+  
+  /*--- Communicate the total file size for the restart ---*/
+  
+#ifdef HAVE_MPI
+  su2double my_file_size = file_size;
+  SU2_MPI::Allreduce(&my_file_size, &file_size, 1,
+                     MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#endif
+  
+  /*--- Compute and store the bandwidth ---*/
+  
+  Bandwidth = file_size/(1.0e6)/UsedTime;
+  config->SetRestart_Bandwidth_Agg(config->GetRestart_Bandwidth_Agg()+Bandwidth);
+  
+  if ((rank == MASTER_NODE) && (wrt_perf)) {
+    cout << "Wrote " << file_size/1.0e6 << " MB to disk in ";
+    cout << UsedTime << " s. (" << Bandwidth << " MB/s)." << endl;
+  }
+  
+  /*--- Free temporary data buffer for writing the binary file. ---*/
+
+  delete [] buf;
+
+  delete [] Local_Halo;
+  delete [] npoint_procs;
+  delete [] nPoint_Linear;
+
+}

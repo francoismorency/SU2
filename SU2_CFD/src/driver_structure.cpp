@@ -3505,6 +3505,8 @@ void CDriver::Output(unsigned long ExtIter) {
   
   unsigned long nExtIter = config_container[ZONE_0]->GetnExtIter();
   bool output_files = false;
+  bool output_average = false;
+  bool end_average = false;
   
   /*--- Determine whether a solution needs to be written
    after the current iteration ---*/
@@ -3605,6 +3607,19 @@ void CDriver::Output(unsigned long ExtIter) {
     
   }
 
+  /*--- Determine whether an average solution needs to be computed
+   after the current iteration ---*/
+  if ((ExtIter+1 >= nExtIter) || (StopCalc)) end_average=true; 
+  if (((ExtIter+1 >= nExtIter) || (StopCalc)) || 
+      ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) && (!fsi) &&
+       ((ExtIter == 0) || ((ExtIter % config_container[ZONE_0]->GetWrt_Sol_Freq_DualTime() == 0))))) output_average=true; 
+  
+  if ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) && (!fsi) &&
+      (ExtIter >= config_container[ZONE_0]->GetAvg_StartIter())) {
+       if (rank == MASTER_NODE) cout << "ExtIter =" << ExtIter << endl; 
+      output->SetSpecialOutput_Average(solver_container, geometry_container, config_container, output_average, end_average, ExtIter, nZone);
+     }
+   
   /*--- Export Surface Solution File for Unsteady Simulations ---*/
   /*--- When calculate mean/fluctuation option will be available, delete the following part ---*/
   if ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) && (ExtIter % config_container[ZONE_0]->GetWrt_Surf_Freq_DualTime() == 0)) {
