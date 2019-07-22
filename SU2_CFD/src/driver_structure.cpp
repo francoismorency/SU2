@@ -4026,6 +4026,7 @@ void CDriver::Output(unsigned long ExtIter) {
 
   /*--- Determine whether an average solution needs to be computed
    after the current iteration ---*/
+    if (rank == MASTER_NODE) cout << " FM: ExtIter+1 " << ExtIter+1 << " nExtIter " << nExtIter << endl;
   if ((ExtIter+1 >= nExtIter) || (StopCalc)) end_average=true; 
   if (((ExtIter+1 >= nExtIter) || (StopCalc)) || 
       ((config_container[ZONE_0]->GetUnsteady_Simulation() == DT_STEPPING_2ND) && (!fsi) &&
@@ -4035,6 +4036,7 @@ void CDriver::Output(unsigned long ExtIter) {
       (ExtIter >= config_container[ZONE_0]->GetAvg_StartIter())) {
        if (rank == MASTER_NODE) cout << "ExtIter =" << ExtIter << endl; 
       output->SetSpecialOutput_Average(solver_container, geometry_container, config_container, output_average, end_average, ExtIter, nZone);
+     if (rank == MASTER_NODE) cout << "FM: End Averaging" << endl; 
      }
    
   /*--- Export Surface Solution File for Unsteady Simulations ---*/

@@ -2090,7 +2090,6 @@ void COutput::WriteParaViewASCII_Parallel(CConfig *config, CGeometry *geometry, 
           if (nDim == 2) Paraview_File << scientific << "0.0" << "\t";
         }
       } else {
-
         for (iPoint = 0; iPoint < nParallel_Poin; iPoint++) {
           for (iDim = 0; iDim < nDim; iDim++)
             Paraview_File << scientific << Parallel_Data[iDim][iPoint] << "\t";
@@ -2273,7 +2272,6 @@ void COutput::WriteParaViewASCII_Parallel(CConfig *config, CGeometry *geometry, 
   /*--- Write the header ---*/
   if (surf_sol) Paraview_File << "\nPOINT_DATA "<< nGlobal_Surf_Poin <<"\n";
   else Paraview_File << "\nPOINT_DATA "<< nGlobal_Poin_Par <<"\n";
-
     }
 
   Paraview_File.flush();
@@ -2334,7 +2332,7 @@ found = Variable_Names[iField].find("_z");
 #endif
 
       /*--- Write surface and volumetric point coordinates. ---*/
-
+      
       for (iProcessor = 0; iProcessor < size; iProcessor++) {
         if (rank == iProcessor) {
 
@@ -2377,7 +2375,7 @@ found = Variable_Names[iField].find("_z");
 #endif
 
       /*--- Write surface and volumetric point coordinates. ---*/
-
+      
       for (iProcessor = 0; iProcessor < size; iProcessor++) {
         if (rank == iProcessor) {
 

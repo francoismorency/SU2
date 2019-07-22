@@ -12880,20 +12880,20 @@ void COutput::LoadLocalData_Flow(CConfig *config, CGeometry *geometry, CSolver *
     /*--- Additional turbulent stress tensor for average DDES solution ---*/
     if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES){
       nVar_Par +=1;
-      Variable_Names.push_back("X-mom*X-mom");
+      Variable_Names.push_back("Tau11");
       nVar_Par +=1;
-      Variable_Names.push_back("X-mom*Y-mom");
+      Variable_Names.push_back("Tau12");
       nVar_Par +=1;
-      Variable_Names.push_back("X-mom*W-mom");
+      Variable_Names.push_back("Tau13");
       nVar_Par +=1;
-      Variable_Names.push_back("Y-mom*Y-mom");
+      Variable_Names.push_back("Tau22");
       nVar_Par +=1;
-      Variable_Names.push_back("Y-mom*W-mom");
+      Variable_Names.push_back("Tau23");
       nVar_Par +=1;
-      Variable_Names.push_back("W-mom*W-mom");
+      Variable_Names.push_back("Tau33");
     }    
     
-    
+    cout << "FM LoadLocalData: nVar_Par " << nVar_Par << endl;
     /*--- New variables get registered here before the end of the loop. ---*/
     
   }
@@ -16137,7 +16137,7 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
   /*--- Store the connectivity for this rank in the proper data
    structure before post-processing below. First, allocate the
    appropriate amount of memory for this section. ---*/
-  
+
   Parallel_Data = new su2double*[VARS_PER_POINT];
   for (int jj = 0; jj < VARS_PER_POINT; jj++) {
     Parallel_Data[jj] = new su2double[nPoint_Recv[size]];
@@ -16145,6 +16145,19 @@ void COutput::SortOutputData(CConfig *config, CGeometry *geometry) {
       Parallel_Data[jj][idRecv[ii]] = connRecv[ii*VARS_PER_POINT+jj];
     }
   }
+  
+  /*--- Allocate, if needed, the space in memory to store average solution.
+    This is only needed for DDES solution, avoid allocating unneeded 
+    memory space ---*/
+    if (config->GetKind_HybridRANSLES()!=NO_HYBRIDRANSLES) {
+      if ( Average_Data == NULL ){
+    	Average_Data = new su2double*[VARS_PER_POINT];
+    	for (int jj = 0; jj < VARS_PER_POINT; jj++) {
+      	  Average_Data[jj] = new su2double[nPoint_Recv[size]]; 
+    	}
+  	  }
+  	}
+  
   
   /*--- Store the total number of local points my rank has for
    the current section after completing the communications. ---*/
@@ -18290,7 +18303,7 @@ void COutput::DeallocateConnectivity_Parallel(CConfig *config, CGeometry *geomet
 void COutput::DeallocateData_Parallel(CConfig *config, CGeometry *geometry) {
   
   /*--- Deallocate memory for solution data ---*/
-  
+   
   for (unsigned short iVar = 0; iVar < nVar_Par; iVar++) {
     if (Parallel_Data[iVar] != NULL) delete [] Parallel_Data[iVar];
   }
@@ -18299,7 +18312,7 @@ void COutput::DeallocateData_Parallel(CConfig *config, CGeometry *geometry) {
   /*--- Deallocate the structures holding the linear partitioning ---*/
 
   if (Local_Halo_Sort != NULL) delete [] Local_Halo_Sort;
-
+  
   if (beg_node != NULL) delete [] beg_node;
   if (end_node != NULL) delete [] end_node;
 
@@ -19245,9 +19258,13 @@ void COutput::SetSpecialOutput_Average(CSolver *****solver_container,
 
       compressible = (config[iZone]->GetKind_Regime() == COMPRESSIBLE);
 
-      /*--- This switch statement will become a call to a virtual function
-       defined within each of the "physics" output child classes that loads
-      the local data for that particular problem alone. ---*/
+    /*--- First, prepare the offsets needed throughout below. ---*/
+
+    PrepareOffsets(config[iZone], geometry[iZone][iInst][MESH_0]);
+    
+    /*--- This switch statement will become a call to a virtual function
+     defined within each of the "physics" output child classes that loads
+     the local data for that particular problem alone. ---*/
     
       if (rank == MASTER_NODE)
         cout << "Loading solution output data locally on each rank." << endl;
@@ -19262,7 +19279,9 @@ void COutput::SetSpecialOutput_Average(CSolver *****solver_container,
       default: break;
       }
     
-    
+#ifdef HAVE_MPI
+      SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
       /*--- After loading the data local to a processor, we perform a sorting,
       i.e., a linear partitioning of the data across all ranks in the communicator. ---*/
     
@@ -19275,9 +19294,9 @@ void COutput::SetSpecialOutput_Average(CSolver *****solver_container,
       StoreAverage_Solution_Parallel(config[iZone], geometry[iZone][iInst][MESH_0], solver_container[iZone][iInst][MESH_0], iZone);
     
       /*--- Deallocate the nodal data needed for averaging solution. ---*/
-    
+  
       DeallocateData_Parallel(config[iZone], geometry[iZone][iInst][MESH_0]);
-    
+
       /*--- Write the average in a pseudo-restart file ---*/
       if (output_files) {
         if (config[iZone]->GetWrt_Binary_Restart()) {
@@ -19288,13 +19307,19 @@ void COutput::SetSpecialOutput_Average(CSolver *****solver_container,
           WriteAverage_Parallel_ASCII(config[iZone], geometry[iZone][iInst][MESH_0], solver_container[iZone][iInst][MESH_0], iZone, iInst);
         }    
       }
+#ifdef HAVE_MPI
+    SU2_MPI::Barrier(MPI_COMM_WORLD);
+#endif
      
     
     /*--- Deallocate the nodal data to store averaging solution. ---*/
-    if (end_average) DeallocateAverage_Data(config[iZone], geometry[iZone][iInst][MESH_0]);
+   
+    if (end_average) {
+     DeallocateAverage_Data(config[iZone], geometry[iZone][iInst][MESH_0]); }
     }
-    /*--- Clear the variable names list. ---*/
     
+    /*--- Clear the variable names list. ---*/
+    Variable_Names.clear();
     /*--- not needed FM think Variable_Names.clear(); ---*/
 
   }
@@ -19321,17 +19346,17 @@ void COutput::StoreAverage_Solution_Parallel(CConfig *config, CGeometry *geometr
   int iProcessor;
 
   /*--- Allocate, if needed, the space in memory to store average solution ---*/
-  if ( Average_Data == NULL ){
-    Average_Data = new su2double*[nVar_Par];
-    for (int jj = 0; jj < nVar_Par; jj++) {
-      Average_Data[jj] = new su2double[nParallel_Poin]; 
-    }
-  }
+  //if (rank == MASTER_NODE) cout << "FM: allocate the space "  << endl;
+  //if ( Average_Data == NULL ){
+    //Average_Data = new su2double*[nVar_Par];
+    //for (int jj = 0; jj < nVar_Par; jj++) {
+     // Average_Data[jj] = new su2double[nParallel_Poin]; 
+    //}
+  //}
   
 #ifdef HAVE_MPI
   SU2_MPI::Barrier(MPI_COMM_WORLD);
 #endif
-  
   
   /*--- Compute and store the average in parallel, processor by processor. ---*/
   unsigned long myPoint = 0, offset = 0, Global_Index;
@@ -22016,7 +22041,6 @@ void COutput::SortOutputData_FEM(CConfig *config, CGeometry *geometry) {
   /*--- Store the connectivity for this rank in the proper data
    structure before post-processing below. First, allocate the
    appropriate amount of memory for this section. ---*/
-
   Parallel_Data = new su2double*[VARS_PER_POINT];
   for (int jj = 0; jj < VARS_PER_POINT; jj++) {
     Parallel_Data[jj] = new su2double[nPoint_Recv[size]];
